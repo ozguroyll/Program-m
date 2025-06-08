@@ -7,6 +7,7 @@ import { RightPanel } from './RightPanel';
 import { TopNavigation } from './TopNavigation';
 import { BottomStatusBar } from './BottomStatusBar';
 import { TalepYonetimi } from '../modules/TalepYonetimi';
+import { StokYonetimi } from '../modules/StokYonetimi';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
@@ -90,6 +91,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                         </div>
                       ) : tab.id === 'talep-yonetimi' ? (
                         <TalepYonetimi />
+                      ) : tab.id === 'stok-yonetimi' ? (
+                        <StokYonetimi />
                       ) : (
                         <div className="h-full p-4">
                           <h3 className="text-lg font-semibold mb-4">{tab.title}</h3>
