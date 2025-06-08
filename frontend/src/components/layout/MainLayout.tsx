@@ -6,6 +6,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { RightPanel } from './RightPanel';
 import { TopNavigation } from './TopNavigation';
 import { BottomStatusBar } from './BottomStatusBar';
+import { TalepYonetimi } from '../modules/TalepYonetimi';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
@@ -79,16 +80,18 @@ export function MainLayout({ children }: MainLayoutProps) {
                 
                 <div className="flex-1 overflow-auto">
                   {openTabs.map((tab) => (
-                    <TabsContent key={tab.id} value={tab.id} className="h-full m-0 p-4">
+                    <TabsContent key={tab.id} value={tab.id} className="h-full m-0 p-0">
                       {tab.id === 'dashboard' ? (
-                        <div className="h-full flex items-center justify-center">
+                        <div className="h-full flex items-center justify-center p-4">
                           <div className="text-center">
                             <h2 className="text-2xl font-bold mb-4">Stok Muhasebe Sistemi</h2>
                             <p className="text-muted-foreground">Sol menüden bir modül seçerek başlayın</p>
                           </div>
                         </div>
+                      ) : tab.id === 'talep-yonetimi' ? (
+                        <TalepYonetimi />
                       ) : (
-                        <div className="h-full">
+                        <div className="h-full p-4">
                           <h3 className="text-lg font-semibold mb-4">{tab.title}</h3>
                           <p className="text-muted-foreground">
                             {tab.module} modülü içeriği burada görüntülenecek
