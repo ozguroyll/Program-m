@@ -10,6 +10,7 @@ import { TalepYonetimi } from '../modules/TalepYonetimi';
 import { StokYonetimi } from '../modules/StokYonetimi';
 import { CariTanimlama } from '../modules/CariTanimlama';
 import { CariIslemler } from '../modules/CariIslemler';
+import { FaturaYonetimi } from '../modules/FaturaYonetimi';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
@@ -99,6 +100,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                         <CariTanimlama />
                       ) : tab.id === 'cari-islemler' ? (
                         <CariIslemler />
+                      ) : tab.id === 'fatura-yonetimi' ? (
+                        <FaturaYonetimi />
                       ) : (
                         <div className="h-full p-4">
                           <h3 className="text-lg font-semibold mb-4">{tab.title}</h3>
