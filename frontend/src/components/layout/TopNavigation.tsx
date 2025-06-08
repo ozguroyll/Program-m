@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,8 +10,10 @@ import {
   Moon, 
   Sun,
   User,
-  LogOut
+  LogOut,
+  RefreshCw
 } from 'lucide-react';
+import ExchangeRateService, { ExchangeRate } from '@/services/exchangeRateService';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,12 +25,30 @@ import {
 
 export function TopNavigation() {
   const [isDark, setIsDark] = useState(false);
+  const [exchangeRates, setExchangeRates] = useState<Map<string, ExchangeRate>>(new Map());
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const exchangeRates = {
-    USD: '32.45',
-    EUR: '35.20',
-    GBP: '40.15'
+  const exchangeService = ExchangeRateService.getInstance();
+
+  const loadExchangeRates = async () => {
+    try {
+      setIsRefreshing(true);
+      const rates = await exchangeService.getRates();
+      setExchangeRates(rates);
+      setLastUpdate(exchangeService.getLastUpdateTime());
+    } catch (error) {
+      console.error('Döviz kurları yüklenemedi:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
+
+  useEffect(() => {
+    loadExchangeRates();
+    const interval = setInterval(loadExchangeRates, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -57,11 +77,31 @@ export function TopNavigation() {
           <div className="flex items-center space-x-2 text-sm">
             <DollarSign className="h-4 w-4" />
             <span>Döviz:</span>
-            {Object.entries(exchangeRates).map(([currency, rate]) => (
-              <Badge key={currency} variant="outline" className="text-xs">
-                {currency}: ₺{rate}
+            {Array.from(exchangeRates.entries()).map(([currency, rate]) => (
+              <Badge 
+                key={currency} 
+                variant="outline" 
+                className="text-xs cursor-pointer hover:bg-muted" 
+                title={`TCMB - Alış: ₺${rate.buyRate.toFixed(4)} | Satış: ₺${rate.sellRate.toFixed(4)}\nEfektif Alış: ₺${rate.banknoteByRate.toFixed(4)} | Efektif Satış: ₺${rate.banknoteSellRate.toFixed(4)}`}
+              >
+                {currency}: ₺{rate.buyRate.toFixed(2)}/₺{rate.sellRate.toFixed(2)}
               </Badge>
             ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadExchangeRates}
+              disabled={isRefreshing}
+              className="h-6 w-6 p-0 ml-2"
+              title="TCMB Kurlarını Yenile"
+            >
+              <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            {lastUpdate && (
+              <span className="text-xs text-muted-foreground ml-2">
+                {lastUpdate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </div>
         </div>
 
