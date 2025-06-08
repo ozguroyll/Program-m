@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, CreditCard, Banknote, ArrowUpDown, Plus, Search, Edit, Trash2, Save, FileText, DollarSign } from 'lucide-react';
+import { CalendarIcon, CreditCard, Banknote, ArrowUpDown, Plus, Search, Edit, Save, FileText, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
@@ -47,14 +47,14 @@ export function CariIslemler() {
   const [selectedCari, setSelectedCari] = useState('');
   const [selectedHesapTuru, setSelectedHesapTuru] = useState('');
 
-  const odemeTipleri = {
-    'Nakit': ['Nakit Ödeme'],
-    'Banka': ['Havale', 'EFT', 'FAST', 'Kredi'],
-    'Çek': ['Çek'],
-    'Senet': ['Senet'],
-    'Dap': ['Dap'],
-    'Virman': ['Virman']
-  };
+  // const odemeTipleri = {
+  //   'Nakit': ['Nakit Ödeme'],
+  //   'Banka': ['Havale', 'EFT', 'FAST', 'Kredi'],
+  //   'Çek': ['Çek'],
+  //   'Senet': ['Senet'],
+  //   'Dap': ['Dap'],
+  //   'Virman': ['Virman']
+  // };
 
   const cariListesi = [
     { kod: 'KHOSH001', ad: 'Khoshnaw Trading', hesaplar: ['Genel Hesap', 'Mısır Hesabı'] },
@@ -85,7 +85,7 @@ export function CariIslemler() {
       tarih: '2025-06-07',
       cariKodu: 'CARGILL001',
       cariAdi: 'Cargill Turkey',
-      hesapTipi: 'Tedarik Hesabı',
+      hesapTuru: 'Tedarik Hesabı',
       islemTipi: 'Tediye',
       odemeTipi: 'EFT',
       tutar: 87500,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,14 +11,15 @@ import { StokYonetimi } from '../modules/StokYonetimi';
 import { CariTanimlama } from '../modules/CariTanimlama';
 import { CariIslemler } from '../modules/CariIslemler';
 import { FaturaYonetimi } from '../modules/FaturaYonetimi';
+import { KasaYonetimi } from '../modules/KasaYonetimi';
+import { BankaYonetimi } from '../modules/BankaYonetimi';
+import { GelirGiderYonetimi } from '../modules/GelirGiderYonetimi';
 
-interface MainLayoutProps {
-  children?: React.ReactNode;
-}
+interface MainLayoutProps {}
 
-export function MainLayout({ children }: MainLayoutProps) {
-  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+export function MainLayout({}: MainLayoutProps) {
+  const [leftPanelOpen] = useState(true);
+  const [rightPanelOpen] = useState(true);
   const [openTabs, setOpenTabs] = useState<Array<{ id: string; title: string; module: string }>>([
     { id: 'dashboard', title: 'Ana Sayfa', module: 'dashboard' }
   ]);
@@ -102,6 +103,12 @@ export function MainLayout({ children }: MainLayoutProps) {
                         <CariIslemler />
                       ) : tab.id === 'fatura-yonetimi' ? (
                         <FaturaYonetimi />
+                      ) : tab.id === 'kasa-yonetimi' ? (
+                        <KasaYonetimi />
+                      ) : tab.id === 'banka-yonetimi' ? (
+                        <BankaYonetimi />
+                      ) : tab.id === 'gelir-gider-yonetimi' ? (
+                        <GelirGiderYonetimi />
                       ) : (
                         <div className="h-full p-4">
                           <h3 className="text-lg font-semibold mb-4">{tab.title}</h3>
