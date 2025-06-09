@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { UltraProfessionalTable } from '@/components/ui/ultra-professional-table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, TrendingUp, TrendingDown, Plus, Search, Edit, Save, Download, Eye, DollarSign, FileText, BarChart3, PieChart } from 'lucide-react';
+import { CalendarIcon, TrendingUp, TrendingDown, Plus, Save, Download, DollarSign, FileText, BarChart3, PieChart } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface GelirKaydi {
@@ -41,7 +41,7 @@ interface GiderKaydi {
   durum: 'Onaylandi' | 'Beklemede' | 'Iptal';
 }
 
-export function GelirGiderYonetimi() {
+export default function GelirGiderYonetimi() {
   const [activeTab, setActiveTab] = useState('gelir-kayit');
   const [selectedDate, setSelectedDate] = useState<Date>();
 
@@ -137,27 +137,165 @@ export function GelirGiderYonetimi() {
     return formatter.format(amount);
   };
 
+  const gelirColumns = [
+    {
+      accessorKey: "tarih",
+      header: "Tarih",
+      cell: ({ row }: any) => new Date(row.getValue("tarih")).toLocaleDateString('tr-TR')
+    },
+    {
+      accessorKey: "altKategori",
+      header: "Kategori",
+      cell: ({ row }: any) => (
+        <div>
+          <div className="font-medium">{row.getValue("altKategori")}</div>
+          <div className="text-sm text-muted-foreground">{row.original.aciklama}</div>
+        </div>
+      )
+    },
+    {
+      accessorKey: "tutar",
+      header: "Tutar",
+      cell: ({ row }: any) => (
+        <span className="font-mono text-green-600 font-medium">
+          {formatCurrency(row.getValue("tutar"), row.original.doviz)}
+        </span>
+      )
+    },
+    {
+      accessorKey: "durum",
+      header: "Durum",
+      cell: ({ row }: any) => (
+        <Badge variant={getDurumColor(row.getValue("durum"))}>
+          {row.getValue("durum")}
+        </Badge>
+      )
+    }
+  ];
+
+  const giderColumns = [
+    {
+      accessorKey: "tarih",
+      header: "Tarih",
+      cell: ({ row }: any) => new Date(row.getValue("tarih")).toLocaleDateString('tr-TR')
+    },
+    {
+      accessorKey: "altKategori",
+      header: "Kategori",
+      cell: ({ row }: any) => (
+        <div>
+          <div className="font-medium">{row.getValue("altKategori")}</div>
+          <div className="text-sm text-muted-foreground">{row.original.aciklama}</div>
+        </div>
+      )
+    },
+    {
+      accessorKey: "tutar",
+      header: "Tutar",
+      cell: ({ row }: any) => (
+        <span className="font-mono text-red-600 font-medium">
+          {formatCurrency(row.getValue("tutar"), row.original.doviz)}
+        </span>
+      )
+    },
+    {
+      accessorKey: "durum",
+      header: "Durum",
+      cell: ({ row }: any) => (
+        <Badge variant={getDurumColor(row.getValue("durum"))}>
+          {row.getValue("durum")}
+        </Badge>
+      )
+    }
+  ];
+
   const toplamGelir = gelirKayitlari.reduce((sum, item) => sum + item.tutar, 0);
   const toplamGider = giderKayitlari.reduce((sum, item) => sum + item.tutar, 0);
   const netKar = toplamGelir - toplamGider;
 
   return (
-    <div className="h-full p-6 space-y-6">
+    <div className="h-full flex flex-col p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Gelir/Gider Yönetimi</h1>
-          <p className="text-muted-foreground">Mali işlemler ve kar/zarar analizi</p>
+          <h2 className="text-2xl font-bold">Gelir/Gider Yönetimi</h2>
+          <p className="text-muted-foreground">Gelir ve gider kayıtlarını yönetin ve analiz edin</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center space-x-2">
           <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Rapor İndir
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Rapor Al
           </Button>
           <Button>
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="w-4 h-4 mr-2" />
             Yeni Kayıt
           </Button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Bu Ay Gelir</p>
+              <p className="text-2xl font-bold text-green-600">$1,850,000</p>
+              <p className="text-xs text-green-600 flex items-center mt-1">
+                <TrendingUp className="w-3 h-3 mr-1" />
+                +12% geçen aya göre
+              </p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Bu Ay Gider</p>
+              <p className="text-2xl font-bold text-orange-600">$1,250,000</p>
+              <p className="text-xs text-orange-600 flex items-center mt-1">
+                <TrendingDown className="w-3 h-3 mr-1" />
+                +8% geçen aya göre
+              </p>
+            </div>
+            <div className="p-3 bg-orange-100 rounded-full">
+              <TrendingDown className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Net Kar</p>
+              <p className="text-2xl font-bold text-blue-600">$600,000</p>
+              <p className="text-xs text-blue-600 flex items-center mt-1">
+                <DollarSign className="w-3 h-3 mr-1" />
+                +25% geçen aya göre
+              </p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-full">
+              <DollarSign className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Kar Marjı</p>
+              <p className="text-2xl font-bold text-green-600">32.4%</p>
+              <p className="text-xs text-green-600 flex items-center mt-1">
+                <PieChart className="w-3 h-3 mr-1" />
+                +3.2% geçen aya göre
+              </p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <PieChart className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -504,56 +642,29 @@ export function GelirGiderYonetimi() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Gelir ara..." className="pl-8" />
-                  </div>
-                  <Button variant="outline" size="sm">Filtrele</Button>
-                </div>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tarih</TableHead>
-                      <TableHead>Kategori</TableHead>
-                      <TableHead>Tutar</TableHead>
-                      <TableHead>Durum</TableHead>
-                      <TableHead>İşlem</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {gelirKayitlari.map((gelir) => (
-                      <TableRow key={gelir.id}>
-                        <TableCell>{gelir.tarih}</TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{gelir.altKategori}</div>
-                            <div className="text-sm text-muted-foreground">{gelir.aciklama}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-green-600">
-                          {formatCurrency(gelir.tutar, gelir.doviz)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getDurumColor(gelir.durum)}>
-                            {gelir.durum}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <UltraProfessionalTable
+                  data={gelirKayitlari}
+                  columns={gelirColumns}
+                  title="Gelir Kayıtları"
+                  description="Tüm gelir kayıtları ve analizi"
+                  searchPlaceholder="Açıklama, kategori veya şirket ile ara..."
+                  enableSearch
+                  enableFilters
+                  enableExport
+                  enableColumnVisibility
+                  enableRowSelection
+                  onExport={(format) => {
+                    alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                  }}
+                  onRefresh={() => window.location.reload()}
+                  showMetrics
+                  metrics={{
+                    total: gelirKayitlari.length,
+                    active: gelirKayitlari.filter(g => g.durum === 'Onaylandi').length,
+                    pending: gelirKayitlari.filter(g => g.durum === 'Beklemede').length,
+                    completed: gelirKayitlari.filter(g => g.kategori === 'Satış Gelirleri').length
+                  }}
+                />
               </CardContent>
             </Card>
 
@@ -565,56 +676,29 @@ export function GelirGiderYonetimi() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Gider ara..." className="pl-8" />
-                  </div>
-                  <Button variant="outline" size="sm">Filtrele</Button>
-                </div>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tarih</TableHead>
-                      <TableHead>Kategori</TableHead>
-                      <TableHead>Tutar</TableHead>
-                      <TableHead>Durum</TableHead>
-                      <TableHead>İşlem</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {giderKayitlari.map((gider) => (
-                      <TableRow key={gider.id}>
-                        <TableCell>{gider.tarih}</TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{gider.altKategori}</div>
-                            <div className="text-sm text-muted-foreground">{gider.aciklama}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-red-600">
-                          {formatCurrency(gider.tutar, gider.doviz)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getDurumColor(gider.durum)}>
-                            {gider.durum}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <UltraProfessionalTable
+                  data={giderKayitlari}
+                  columns={giderColumns}
+                  title="Gider Kayıtları"
+                  description="Tüm gider kayıtları ve analizi"
+                  searchPlaceholder="Açıklama, kategori veya şirket ile ara..."
+                  enableSearch
+                  enableFilters
+                  enableExport
+                  enableColumnVisibility
+                  enableRowSelection
+                  onExport={(format) => {
+                    alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                  }}
+                  onRefresh={() => window.location.reload()}
+                  showMetrics
+                  metrics={{
+                    total: giderKayitlari.length,
+                    active: giderKayitlari.filter(g => g.durum === 'Onaylandi').length,
+                    pending: giderKayitlari.filter(g => g.durum === 'Beklemede').length,
+                    completed: giderKayitlari.filter(g => g.kategori === 'Operasyonel Giderler').length
+                  }}
+                />
               </CardContent>
             </Card>
           </div>

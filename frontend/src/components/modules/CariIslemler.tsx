@@ -5,14 +5,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
+import { ProfessionalDataTable } from '@/components/ui/professional-data-table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, CreditCard, Banknote, ArrowUpDown, Plus, Search, Edit, Save, FileText, DollarSign } from 'lucide-react';
+import { CalendarIcon, CreditCard, Banknote, ArrowUpDown, Plus, Save, FileText, DollarSign, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { ColumnDef } from '@tanstack/react-table';
+
 
 interface CariIslem {
   id: string;
@@ -190,17 +194,207 @@ export function CariIslemler() {
     return cari ? cari.hesaplar : [];
   };
 
+  const cariIslemColumns: ColumnDef<CariIslem>[] = [
+    {
+      accessorKey: "tarih",
+      header: "Tarih",
+      cell: ({ row }) => {
+        const tarih = row.getValue("tarih") as string
+        return <div>{new Date(tarih).toLocaleDateString('tr-TR')}</div>
+      },
+    },
+    {
+      accessorKey: "cariAdi",
+      header: "Cari",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.getValue("cariAdi")}</div>
+          <div className="text-sm text-muted-foreground">{row.original.cariKodu}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "hesapTuru",
+      header: "Hesap Türü",
+    },
+    {
+      accessorKey: "islemTipi",
+      header: "İşlem Tipi",
+      cell: ({ row }) => {
+        const tip = row.getValue("islemTipi") as string
+        return (
+          <Badge className={getIslemTipiColor(tip)}>
+            {tip}
+          </Badge>
+        )
+      },
+    },
+    {
+      accessorKey: "odemeTipi",
+      header: "Ödeme Tipi",
+    },
+    {
+      accessorKey: "tutar",
+      header: "Tutar",
+      cell: ({ row }) => {
+        const tutar = parseFloat(row.getValue("tutar"))
+        const doviz = row.original.dovizTipi
+        const islemTipi = row.original.islemTipi
+        const color = islemTipi === 'Tahsilat' ? 'text-green-600' : 'text-red-600'
+        return <div className={`text-right font-medium ${color}`}>{formatCurrency(tutar, doviz)}</div>
+      },
+    },
+    {
+      accessorKey: "durum",
+      header: "Durum",
+      cell: ({ row }) => {
+        const durum = row.getValue("durum") as string
+        return (
+          <Badge className={getDurumColor(durum)}>
+            {durum}
+          </Badge>
+        )
+      },
+    },
+    {
+      accessorKey: "belgeNo",
+      header: "Belge No",
+      cell: ({ row }) => (
+        <div className="font-mono text-sm">{row.getValue("belgeNo")}</div>
+      ),
+    },
+  ];
+
+  const cariEkstreColumns: ColumnDef<CariEkstre>[] = [
+    {
+      accessorKey: "cariAdi",
+      header: "Cari",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.getValue("cariAdi")}</div>
+          <div className="text-sm text-muted-foreground">{row.original.cariKodu}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "hesapTuru",
+      header: "Hesap Türü",
+    },
+    {
+      accessorKey: "toplamBorc",
+      header: "Toplam Borç",
+      cell: ({ row }) => {
+        const borc = parseFloat(row.getValue("toplamBorc"))
+        const doviz = row.original.dovizTipi
+        return <div className="text-right font-medium text-red-600">{formatCurrency(borc, doviz)}</div>
+      },
+    },
+    {
+      accessorKey: "toplamAlacak",
+      header: "Toplam Alacak",
+      cell: ({ row }) => {
+        const alacak = parseFloat(row.getValue("toplamAlacak"))
+        const doviz = row.original.dovizTipi
+        return <div className="text-right font-medium text-green-600">{formatCurrency(alacak, doviz)}</div>
+      },
+    },
+    {
+      accessorKey: "bakiye",
+      header: "Bakiye",
+      cell: ({ row }) => {
+        const bakiye = parseFloat(row.getValue("bakiye"))
+        const doviz = row.original.dovizTipi
+        return (
+          <div className={`text-right font-medium ${getBakiyeColor(bakiye)}`}>
+            {formatCurrency(Math.abs(bakiye), doviz)}
+            {bakiye < 0 && ' (Borçlu)'}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "sonIslemTarihi",
+      header: "Son İşlem",
+      cell: ({ row }) => {
+        const tarih = row.getValue("sonIslemTarihi") as string
+        return <div>{new Date(tarih).toLocaleDateString('tr-TR')}</div>
+      },
+    },
+  ];
+
   return (
-    <div className="h-full p-6 bg-background">
+    <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold">Cari İşlemler</h2>
           <p className="text-muted-foreground">Tediye, tahsilat ve virman işlemlerini yönetin</p>
         </div>
-        <Button className="bg-primary text-primary-foreground">
+        <Button>
           <Plus className="w-4 h-4 mr-2" />
           Yeni İşlem
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Günlük Tediye</CardTitle>
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">$90,000</div>
+            <p className="text-xs text-muted-foreground">Bugün</p>
+            <div className="flex items-center text-xs text-red-600 mt-1">
+              <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
+              -5% dün
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Günlük Tahsilat</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">$125,000</div>
+            <p className="text-xs text-muted-foreground">Bugün</p>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              +15% dün
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Nakit Akışı</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">$35,000</div>
+            <p className="text-xs text-muted-foreground">Bugün</p>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              +8% dün
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bekleyen İşlemler</CardTitle>
+            <AlertCircle className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">1</div>
+            <p className="text-xs text-muted-foreground">Onay bekliyor</p>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
+              -2 dün
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
@@ -460,294 +654,260 @@ export function CariIslemler() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="islem-listesi" className="space-y-6">
+        <TabsContent value="islem-listesi" className="flex-1">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Cari İşlem Listesi
-              </CardTitle>
-              <CardDescription>
-                Tüm tediye, tahsilat ve virman işlemlerini görüntüleyin
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Cari İşlem Listesi
+                  </CardTitle>
+                  <CardDescription>
+                    Tüm tediye, tahsilat ve virman işlemlerini görüntüleyin
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Cari adı, belge no veya açıklama ara..." className="pl-10" />
-                </div>
-                <Select>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="İşlem tipi" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tümü</SelectItem>
-                    <SelectItem value="tediye">Tediye</SelectItem>
-                    <SelectItem value="tahsilat">Tahsilat</SelectItem>
-                    <SelectItem value="virman">Virman</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Durum" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tümü</SelectItem>
-                    <SelectItem value="onaylandi">Onaylandı</SelectItem>
-                    <SelectItem value="beklemede">Beklemede</SelectItem>
-                    <SelectItem value="iptal">İptal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tarih</TableHead>
-                    <TableHead>Cari</TableHead>
-                    <TableHead>Hesap Türü</TableHead>
-                    <TableHead>İşlem Tipi</TableHead>
-                    <TableHead>Ödeme Tipi</TableHead>
-                    <TableHead>Tutar</TableHead>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>İşlemler</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cariIslemler.map((islem) => (
-                    <TableRow key={islem.id}>
-                      <TableCell>{new Date(islem.tarih).toLocaleDateString('tr-TR')}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{islem.cariAdi}</div>
-                          <div className="text-sm text-muted-foreground">{islem.cariKodu}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{islem.hesapTuru}</TableCell>
-                      <TableCell>
-                        <Badge className={getIslemTipiColor(islem.islemTipi)}>
-                          {islem.islemTipi}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{islem.odemeTipi}</TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(islem.tutar, islem.dovizTipi)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getDurumColor(islem.durum)}>
-                          {islem.durum}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4 mr-1" />
-                            Düzenle
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <FileText className="w-4 h-4 mr-1" />
-                            Yazdır
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ProfessionalDataTable
+                columns={cariIslemColumns}
+                data={cariIslemler}
+                title="Cari İşlem Listesi"
+                description="Tüm cari işlemlerinizi görüntüleyin ve yönetin"
+                searchKey="cariAdi"
+                searchPlaceholder="Cari adı, belge no veya açıklama ile ara..."
+                enableSelection={true}
+                onExport={(format) => {
+                  alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                }}
+                onRefresh={() => window.location.reload()}
+                onView={(_islem: any) => {
+                  alert('İşlem detayları görüntüleme özelliği yakında eklenecek');
+                }}
+                onEdit={(_islem: any) => {
+                  alert('İşlem düzenleme özelliği yakında eklenecek');
+                }}
+                onDelete={(_islem: any) => {
+                  if (confirm('Bu işlemi silmek istediğinizden emin misiniz?')) {
+                    alert('İşlem silme özelliği yakında eklenecek');
+                  }
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="cari-ekstreler" className="space-y-6">
+        <TabsContent value="cari-ekstreler" className="flex-1">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Cari Ekstreler
-              </CardTitle>
-              <CardDescription>
-                Carilerin alacak/verecek durumlarını görüntüleyin
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5" />
+                    Cari Ekstreler
+                  </CardTitle>
+                  <CardDescription>
+                    Carilerin alacak/verecek durumlarını görüntüleyin
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Cari adı veya kodu ara..." className="pl-10" />
-                </div>
-                <Select>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Hesap türü" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tüm Hesaplar</SelectItem>
-                    <SelectItem value="misir">Mısır Hesabı</SelectItem>
-                    <SelectItem value="bugday">Buğday Hesabı</SelectItem>
-                    <SelectItem value="komisyon">Komisyon Hesabı</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Excel'e Aktar
-                </Button>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cari</TableHead>
-                    <TableHead>Hesap Türü</TableHead>
-                    <TableHead>Toplam Borç</TableHead>
-                    <TableHead>Toplam Alacak</TableHead>
-                    <TableHead>Bakiye</TableHead>
-                    <TableHead>Son İşlem</TableHead>
-                    <TableHead>İşlemler</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cariEkstreler.map((ekstre, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{ekstre.cariAdi}</div>
-                          <div className="text-sm text-muted-foreground">{ekstre.cariKodu}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{ekstre.hesapTuru}</TableCell>
-                      <TableCell className="text-red-600">
-                        {formatCurrency(ekstre.toplamBorc, ekstre.dovizTipi)}
-                      </TableCell>
-                      <TableCell className="text-green-600">
-                        {formatCurrency(ekstre.toplamAlacak, ekstre.dovizTipi)}
-                      </TableCell>
-                      <TableCell className={`font-medium ${getBakiyeColor(ekstre.bakiye)}`}>
-                        {formatCurrency(Math.abs(ekstre.bakiye), ekstre.dovizTipi)}
-                        {ekstre.bakiye < 0 && ' (Borçlu)'}
-                      </TableCell>
-                      <TableCell>{new Date(ekstre.sonIslemTarihi).toLocaleDateString('tr-TR')}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <FileText className="w-4 h-4 mr-1" />
-                            Detay
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <DollarSign className="w-4 h-4 mr-1" />
-                            Ekstre
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ProfessionalDataTable
+                columns={cariEkstreColumns}
+                data={cariEkstreler}
+                title="Cari Ekstre Listesi"
+                description="Cari hesap bakiyelerini ve hareketlerini görüntüleyin"
+                searchKey="cariAdi"
+                searchPlaceholder="Cari adı veya kodu ile ara..."
+                enableSelection={true}
+                onExport={(format) => {
+                  alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                }}
+                onRefresh={() => window.location.reload()}
+                onView={(_ekstre: any) => {
+                  alert('Ekstre detayları görüntüleme özelliği yakında eklenecek');
+                }}
+                onEdit={(_ekstre: any) => {
+                  alert('Ekstre düzenleme özelliği yakında eklenecek');
+                }}
+                onDelete={(_ekstre: any) => {
+                  if (confirm('Bu ekstreyi silmek istediğinizden emin misiniz?')) {
+                    alert('Ekstre silme özelliği yakında eklenecek');
+                  }
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="raporlar" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Günlük Özet</CardTitle>
-                <CardDescription>Bugünkü işlem özeti</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Toplam Tediye:</span>
-                    <span className="font-medium text-red-600">$90,000</span>
+        <TabsContent value="raporlar" className="flex-1">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Toplam Tediye</CardTitle>
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">USD 90,000</div>
+                  <p className="text-xs text-muted-foreground">Bugün</p>
+                  <div className="flex items-center text-xs text-red-600 mt-1">
+                    <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
+                    -5% dün
                   </div>
-                  <div className="flex justify-between">
-                    <span>Toplam Tahsilat:</span>
-                    <span className="font-medium text-green-600">$125,000</span>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Toplam Tahsilat</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">USD 125,000</div>
+                  <p className="text-xs text-muted-foreground">Bugün</p>
+                  <div className="flex items-center text-xs text-green-600 mt-1">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    +15% dün
                   </div>
-                  <div className="flex justify-between">
-                    <span>Net Nakit Akışı:</span>
-                    <span className="font-medium text-green-600">$35,000</span>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Net Nakit Akışı</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">USD 35,000</div>
+                  <p className="text-xs text-muted-foreground">Bugün</p>
+                  <div className="flex items-center text-xs text-green-600 mt-1">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    +8% dün
                   </div>
-                  <div className="flex justify-between">
-                    <span>İşlem Sayısı:</span>
-                    <span className="font-medium">12</span>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">İşlem Sayısı</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">12</div>
+                  <p className="text-xs text-muted-foreground">Bugün</p>
+                  <div className="flex items-center text-xs text-green-600 mt-1">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    +3 dün
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Bekleyen İşlemler</CardTitle>
+                  <CardDescription>Onay bekleyen işlemler</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-2 rounded bg-yellow-50">
+                      <span className="font-medium">Bekleyen Tediye</span>
+                      <span className="font-bold text-yellow-700">USD 2,500</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded bg-green-50">
+                      <span className="font-medium">Bekleyen Tahsilat</span>
+                      <span className="font-bold text-green-700">USD 0</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                      <span className="font-medium">Toplam Bekleyen</span>
+                      <span className="font-bold">1 işlem</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Döviz Dağılımı</CardTitle>
+                  <CardDescription>Para birimi bazında dağılım</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-2 rounded bg-blue-50">
+                      <span className="font-medium">USD İşlemler</span>
+                      <span className="font-bold text-blue-700">USD 215,000</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded bg-green-50">
+                      <span className="font-medium">EUR İşlemler</span>
+                      <span className="font-bold text-green-700">EUR 0</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded bg-red-50">
+                      <span className="font-medium">TRY İşlemler</span>
+                      <span className="font-bold text-red-700">₺ 0</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Ödeme Tipi Dağılımı</CardTitle>
+                  <CardDescription>Ödeme yöntemleri</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                      <span className="font-medium">Havale/EFT</span>
+                      <span className="font-bold">USD 180,000</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                      <span className="font-medium">Nakit</span>
+                      <span className="font-bold">USD 25,000</span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded bg-muted/50">
+                      <span className="font-medium">Çek/Senet</span>
+                      <span className="font-bold">USD 10,000</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Bekleyen İşlemler</CardTitle>
-                <CardDescription>Onay bekleyen işlemler</CardDescription>
+                <CardTitle>Detaylı Raporlar</CardTitle>
+                <CardDescription>Kapsamlı analiz raporları oluşturun</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Bekleyen Tediye:</span>
-                    <span className="font-medium text-yellow-600">$2,500</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Bekleyen Tahsilat:</span>
-                    <span className="font-medium text-yellow-600">$0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Toplam Bekleyen:</span>
-                    <span className="font-medium">1 işlem</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Döviz Dağılımı</CardTitle>
-                <CardDescription>Para birimi bazında dağılım</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>USD İşlemler:</span>
-                    <span className="font-medium">$215,000</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>EUR İşlemler:</span>
-                    <span className="font-medium">€0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>TRY İşlemler:</span>
-                    <span className="font-medium">₺0</span>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Button variant="outline" className="h-24 flex flex-col justify-center hover:shadow-md transition-shadow">
+                    <FileText className="w-8 h-8 mb-2 text-blue-600" />
+                    <span className="font-medium">Aylık Rapor</span>
+                    <span className="text-xs text-muted-foreground">Detaylı aylık analiz</span>
+                  </Button>
+                  <Button variant="outline" className="h-24 flex flex-col justify-center hover:shadow-md transition-shadow">
+                    <DollarSign className="w-8 h-8 mb-2 text-green-600" />
+                    <span className="font-medium">Cari Bazlı Rapor</span>
+                    <span className="text-xs text-muted-foreground">Cari hesap analizi</span>
+                  </Button>
+                  <Button variant="outline" className="h-24 flex flex-col justify-center hover:shadow-md transition-shadow">
+                    <ArrowUpDown className="w-8 h-8 mb-2 text-purple-600" />
+                    <span className="font-medium">Nakit Akış Raporu</span>
+                    <span className="text-xs text-muted-foreground">Nakit akış analizi</span>
+                  </Button>
+                  <Button variant="outline" className="h-24 flex flex-col justify-center hover:shadow-md transition-shadow">
+                    <Banknote className="w-8 h-8 mb-2 text-orange-600" />
+                    <span className="font-medium">Ödeme Tipi Raporu</span>
+                    <span className="text-xs text-muted-foreground">Ödeme yöntemi analizi</span>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Detaylı Raporlar</CardTitle>
-              <CardDescription>Kapsamlı analiz raporları oluşturun</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
-                  <FileText className="w-6 h-6 mb-2" />
-                  <span>Aylık Rapor</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
-                  <DollarSign className="w-6 h-6 mb-2" />
-                  <span>Cari Bazlı Rapor</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
-                  <ArrowUpDown className="w-6 h-6 mb-2" />
-                  <span>Nakit Akış Raporu</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col items-center justify-center">
-                  <Banknote className="w-6 h-6 mb-2" />
-                  <span>Ödeme Tipi Raporu</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

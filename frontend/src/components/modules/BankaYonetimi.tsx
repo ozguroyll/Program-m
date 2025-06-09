@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { UltraProfessionalTable } from '@/components/ui/ultra-professional-table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Building2, Plus, Search, Edit, Trash2, Save, Download, Eye, CreditCard, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, TrendingUp, FileText } from 'lucide-react';
-import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
+import { Building2, Plus, Save, Download, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, TrendingUp, TrendingDown, AlertCircle, FileText, CreditCard } from 'lucide-react';
+import { StatusBadge, CurrencyCell } from '@/components/ui/enhanced-data-table';
+import { ColumnDef } from '@tanstack/react-table';
 
 interface BankAccount {
   id: string;
@@ -43,10 +40,8 @@ interface BankTransaction {
   category: string;
 }
 
-export function BankaYonetimi() {
+export default function BankaYonetimi() {
   const [activeTab, setActiveTab] = useState('hesap-tanimlama');
-  const [selectedDate, setSelectedDate] = useState<Date>();
-  const [searchTerm, setSearchTerm] = useState('');
 
   const [bankAccounts] = useState<BankAccount[]>([
     {
@@ -188,27 +183,27 @@ export function BankaYonetimi() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Aktif':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Aktif</Badge>;
+        return <StatusBadge status={status} variant="default" />;
       case 'Pasif':
-        return <Badge variant="secondary">Pasif</Badge>;
+        return <StatusBadge status={status} variant="secondary" />;
       case 'Tamamlandı':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Tamamlandı</Badge>;
+        return <StatusBadge status={status} variant="default" />;
       case 'Beklemede':
-        return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Beklemede</Badge>;
+        return <StatusBadge status={status} variant="outline" />;
       case 'İptal':
-        return <Badge variant="destructive">İptal</Badge>;
+        return <StatusBadge status={status} variant="destructive" />;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <StatusBadge status={status} variant="secondary" />;
     }
   };
 
   const getTransactionTypeBadge = (type: string) => {
     const isIncoming = ['Gelen Havale', 'FAST', 'Çek Tahsilatı', 'Senet Tahsilatı'].includes(type);
     return (
-      <Badge variant={isIncoming ? "default" : "destructive"} 
-             className={isIncoming ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-        {type}
-      </Badge>
+      <StatusBadge 
+        status={type}
+        variant={isIncoming ? "default" : "destructive"} 
+      />
     );
   };
 
@@ -235,24 +230,229 @@ export function BankaYonetimi() {
 
   const summary = getTransactionSummary();
 
+  const bankAccountColumns: ColumnDef<BankAccount>[] = [
+    {
+      accessorKey: "bankName",
+      header: "Banka",
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("bankName")}</div>
+      ),
+    },
+    {
+      accessorKey: "accountName",
+      header: "Hesap Adı",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.getValue("accountName")}</div>
+          <div className="text-sm text-muted-foreground">{row.original.accountNumber}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "iban",
+      header: "IBAN",
+      cell: ({ row }) => (
+        <div className="font-mono text-sm">{row.getValue("iban")}</div>
+      ),
+    },
+    {
+      accessorKey: "balance",
+      header: "Bakiye",
+      cell: ({ row }) => {
+        const balance = parseFloat(row.getValue("balance"))
+        const currency = row.original.currency
+        return <div className="text-right font-medium">{formatCurrency(balance, currency)}</div>
+      },
+    },
+    {
+      accessorKey: "accountType",
+      header: "Hesap Türü",
+    },
+    {
+      accessorKey: "company",
+      header: "Şirket",
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("company")}</div>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Durum",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string
+        return getStatusBadge(status)
+      },
+    },
+    {
+      accessorKey: "openDate",
+      header: "Açılış Tarihi",
+      cell: ({ row }) => {
+        const date = row.getValue("openDate") as string
+        return <div>{new Date(date).toLocaleDateString('tr-TR')}</div>
+      },
+    },
+  ];
+
+  const bankTransactionColumns: ColumnDef<BankTransaction>[] = [
+    {
+      accessorKey: "date",
+      header: "Tarih",
+      cell: ({ row }) => {
+        const date = row.getValue("date") as string
+        return <div>{new Date(date).toLocaleDateString('tr-TR')}</div>
+      },
+    },
+    {
+      accessorKey: "accountName",
+      header: "Hesap",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.getValue("accountName")}</div>
+          <div className="text-sm text-muted-foreground">{row.original.accountId}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "transactionType",
+      header: "İşlem Tipi",
+      cell: ({ row }) => {
+        const type = row.getValue("transactionType") as string
+        return getTransactionTypeBadge(type)
+      },
+    },
+    {
+      accessorKey: "amount",
+      header: "Tutar",
+      cell: ({ row }) => {
+        const amount = parseFloat(row.getValue("amount"))
+        const currency = row.original.currency
+        const isPositive = amount > 0
+        return (
+          <div className={`text-right font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(Math.abs(amount), currency)}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "relatedParty",
+      header: "İlgili Taraf",
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("relatedParty")}</div>
+      ),
+    },
+    {
+      accessorKey: "category",
+      header: "Kategori",
+    },
+    {
+      accessorKey: "referenceNo",
+      header: "Referans No",
+      cell: ({ row }) => (
+        <div className="font-mono text-sm">{row.getValue("referenceNo")}</div>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Durum",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string
+        return getStatusBadge(status)
+      },
+    },
+  ];
+
   return (
     <div className="h-full flex flex-col p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Banka Yönetimi</h2>
+          <h2 className="text-2xl font-bold">Banka Yönetimi</h2>
           <p className="text-muted-foreground">Banka hesapları ve işlemlerini yönetin</p>
         </div>
-        <Button className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Yeni İşlem
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline">
+            <CreditCard className="w-4 h-4 mr-2" />
+            Ekstre Al
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Yeni Hesap
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Toplam Bakiye</p>
+              <p className="text-2xl font-bold text-green-600">$2,450,000</p>
+              <p className="text-xs text-green-600 flex items-center mt-1">
+                <TrendingUp className="w-3 h-3 mr-1" />
+                +8% geçen aya göre
+              </p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <DollarSign className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Günlük Giriş</p>
+              <p className="text-2xl font-bold text-blue-600">$125,000</p>
+              <p className="text-xs text-blue-600 flex items-center mt-1">
+                <TrendingUp className="w-3 h-3 mr-1" />
+                +15% dün
+              </p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-full">
+              <TrendingUp className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Günlük Çıkış</p>
+              <p className="text-2xl font-bold text-orange-600">$85,000</p>
+              <p className="text-xs text-orange-600 flex items-center mt-1">
+                <TrendingDown className="w-3 h-3 mr-1" />
+                -5% dün
+              </p>
+            </div>
+            <div className="p-3 bg-orange-100 rounded-full">
+              <TrendingDown className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Bekleyen İşlemler</p>
+              <p className="text-2xl font-bold text-orange-600">3</p>
+              <p className="text-xs text-muted-foreground">Onay bekliyor</p>
+            </div>
+            <div className="p-3 bg-orange-100 rounded-full">
+              <AlertCircle className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="hesap-tanimlama" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Hesap Tanımlama
+          </TabsTrigger>
+          <TabsTrigger value="hesap-listesi" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            Hesap Listesi
           </TabsTrigger>
           <TabsTrigger value="islem-listesi" className="flex items-center gap-2">
             <ArrowUpDown className="h-4 w-4" />
@@ -269,20 +469,20 @@ export function BankaYonetimi() {
         </TabsList>
 
         <div className="flex-1 mt-6">
-          <TabsContent value="hesap-tanimlama" className="h-full space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-              <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5" />
-                      Banka Hesabı Formu
-                    </CardTitle>
-                    <CardDescription>
-                      Yeni banka hesabı tanımlayın veya mevcut hesabı düzenleyin
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+          <TabsContent value="hesap-tanimlama" className="flex-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Yeni Banka Hesabı
+                  </CardTitle>
+                  <CardDescription>
+                    Yeni banka hesabı tanımlayın veya mevcut hesabı düzenleyin
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="bankName">Banka Adı *</Label>
@@ -365,22 +565,7 @@ export function BankaYonetimi() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="openDate">Açılış Tarihi *</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full justify-start text-left font-normal">
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {selectedDate ? format(selectedDate, "dd/MM/yyyy", { locale: tr }) : "Tarih seçin"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={selectedDate}
-                              onSelect={setSelectedDate}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <Input type="date" />
                       </div>
                     </div>
 
@@ -401,16 +586,17 @@ export function BankaYonetimi() {
                       </Button>
                       <Button variant="outline">Temizle</Button>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Toplam Bakiyeler</CardTitle>
+                    <CardDescription>Para birimi bazında toplam bakiyeler</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                         <span className="font-medium">TRY Toplam:</span>
@@ -437,21 +623,26 @@ export function BankaYonetimi() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Günlük Özet</CardTitle>
+                    <CardDescription>Bugünkü işlem özeti</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-3 bg-green-50 rounded-lg">
                         <ArrowUp className="h-6 w-6 text-green-600 mx-auto mb-1" />
                         <div className="text-sm text-muted-foreground">Gelen</div>
-                        <div className="font-bold text-green-700">₺{summary.incoming.toLocaleString()}</div>
+                        <div className="font-bold text-green-700">
+                          <CurrencyCell amount={summary.incoming} currency="TRY" className="text-green-700" />
+                        </div>
                       </div>
                       <div className="text-center p-3 bg-red-50 rounded-lg">
                         <ArrowDown className="h-6 w-6 text-red-600 mx-auto mb-1" />
                         <div className="text-sm text-muted-foreground">Giden</div>
-                        <div className="font-bold text-red-700">₺{summary.outgoing.toLocaleString()}</div>
+                        <div className="font-bold text-red-700">
+                          <CurrencyCell amount={summary.outgoing} currency="TRY" className="text-red-700" />
+                        </div>
                       </div>
                     </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg mt-4">
                       <div className="text-sm text-muted-foreground">Toplam İşlem</div>
                       <div className="font-bold text-blue-700">{summary.count} işlem</div>
                     </div>
@@ -461,108 +652,88 @@ export function BankaYonetimi() {
             </div>
           </TabsContent>
 
-          <TabsContent value="islem-listesi" className="h-full space-y-6">
+          <TabsContent value="hesap-listesi" className="flex-1">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ArrowUpDown className="h-5 w-5" />
-                  Banka İşlem Listesi
-                </CardTitle>
-                <CardDescription>
-                  Tüm banka giriş ve çıkış işlemlerini görüntüleyin
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Banka Hesap Listesi
+                    </CardTitle>
+                    <CardDescription>
+                      Tüm banka hesaplarını görüntüleyin ve yönetin
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-4 mb-6">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Açıklama, referans no veya cari ara..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm"
-                    />
-                  </div>
-                  <Select>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="İşlem tipi" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tüm İşlemler</SelectItem>
-                      <SelectItem value="gelen-havale">Gelen Havale</SelectItem>
-                      <SelectItem value="giden-havale">Giden Havale</SelectItem>
-                      <SelectItem value="eft">EFT</SelectItem>
-                      <SelectItem value="fast">FAST</SelectItem>
-                      <SelectItem value="cek">Çek</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Döviz" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tümü</SelectItem>
-                      <SelectItem value="TRY">TRY</SelectItem>
-                      <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="EUR">EUR</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <UltraProfessionalTable
+                  data={bankAccounts}
+                  columns={bankAccountColumns}
+                  title="Banka Hesapları"
+                  description="Aktif banka hesapları ve bakiye durumu"
+                  searchPlaceholder="Banka adı veya hesap numarası ile ara..."
+                  enableSearch
+                  enableFilters
+                  enableExport
+                  enableColumnVisibility
+                  enableRowSelection
+                  onExport={(format) => {
+                    alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                  }}
+                  onRefresh={() => window.location.reload()}
+                  showMetrics
+                  metrics={{
+                    total: bankAccounts.length,
+                    active: bankAccounts.filter(h => h.status === 'Aktif').length,
+                    pending: bankAccounts.filter(h => h.status === 'Beklemede').length,
+                    completed: bankAccounts.filter(h => h.accountType === 'Vadesiz').length
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tarih</TableHead>
-                        <TableHead>İşlem</TableHead>
-                        <TableHead>Kategori</TableHead>
-                        <TableHead>Cari</TableHead>
-                        <TableHead>Tutar</TableHead>
-                        <TableHead>Durum</TableHead>
-                        <TableHead>İşlemler</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bankTransactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>{transaction.date}</TableCell>
-                          <TableCell>
-                            <div>
-                              {getTransactionTypeBadge(transaction.transactionType)}
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {transaction.accountName}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{transaction.category}</TableCell>
-                          <TableCell>
-                            <div>
-                              {transaction.relatedParty}
-                              <div className="text-sm text-muted-foreground">
-                                {transaction.referenceNo}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className={transaction.amount > 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                              {formatCurrency(Math.abs(transaction.amount), transaction.currency)}
-                            </span>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+          <TabsContent value="islem-listesi" className="flex-1">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ArrowUpDown className="h-5 w-5" />
+                      Banka İşlem Listesi
+                    </CardTitle>
+                    <CardDescription>
+                      Tüm banka giriş ve çıkış işlemlerini görüntüleyin
+                    </CardDescription>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <UltraProfessionalTable
+                  data={bankTransactions}
+                  columns={bankTransactionColumns}
+                  title="Banka İşlemleri"
+                  description="Tüm banka giriş ve çıkış işlemlerini görüntüleyin"
+                  searchPlaceholder="Açıklama, referans no veya cari ile ara..."
+                  enableSearch
+                  enableFilters
+                  enableExport
+                  enableColumnVisibility
+                  enableRowSelection
+                  onExport={(format) => {
+                    alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                  }}
+                  onRefresh={() => window.location.reload()}
+                  showMetrics
+                  metrics={{
+                    total: bankTransactions.length,
+                    active: bankTransactions.filter(t => t.status === 'Tamamlandı').length,
+                    pending: bankTransactions.filter(t => t.status === 'Beklemede').length,
+                    completed: bankTransactions.filter(t => t.amount > 0).length
+                  }}
+                />
               </CardContent>
             </Card>
           </TabsContent>

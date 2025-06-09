@@ -5,10 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { UltraProfessionalTable } from '@/components/ui/ultra-professional-table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Building2, Plus, Search, Edit, Trash2, Save, RotateCcw } from 'lucide-react';
+import { Users, Building2, Plus, Trash2, Save, RotateCcw } from 'lucide-react';
 
 interface CariKaydi {
   id: string;
@@ -143,6 +143,74 @@ export function CariTanimlama() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const cariColumns = [
+    {
+      accessorKey: "kod",
+      header: "Cari Kodu",
+      cell: ({ row }: any) => (
+        <div className="font-medium">{row.getValue("kod")}</div>
+      ),
+    },
+    {
+      accessorKey: "ad",
+      header: "Cari Adı",
+    },
+    {
+      accessorKey: "tip",
+      header: "Tipi",
+      cell: ({ row }: any) => (
+        <Badge className={getTipColor(row.getValue("tip"))}>
+          {row.getValue("tip")}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "telefon",
+      header: "Telefon",
+    },
+    {
+      accessorKey: "hesapSayisi",
+      header: "Hesap Sayısı",
+    },
+    {
+      accessorKey: "durum",
+      header: "Durum",
+      cell: ({ row }: any) => (
+        <Badge className={getDurumColor(row.getValue("durum"))}>
+          {row.getValue("durum")}
+        </Badge>
+      ),
+    },
+  ];
+
+  const hesapColumns = [
+    {
+      accessorKey: "cariAdi",
+      header: "Cari Adı",
+      cell: ({ row }: any) => {
+        const cari = cariListesi.find(c => c.id === row.original.cariId);
+        return <div className="font-medium">{cari?.ad}</div>;
+      },
+    },
+    {
+      accessorKey: "hesapAdi",
+      header: "Hesap Türü",
+    },
+    {
+      accessorKey: "aciklama",
+      header: "Açıklama",
+    },
+    {
+      accessorKey: "durum",
+      header: "Durum",
+      cell: ({ row }: any) => (
+        <Badge className={getDurumColor(row.getValue("durum"))}>
+          {row.getValue("durum")}
+        </Badge>
+      ),
+    },
+  ];
 
   const handleCariSelect = (cari: CariKaydi) => {
     setSelectedCari(cari);
@@ -360,67 +428,36 @@ export function CariTanimlama() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Cari adı, kodu veya tipi ara..." className="pl-10" />
-                </div>
-                <Select>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Tip filtrele" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tümü</SelectItem>
-                    {cariTipleri.map((tip) => (
-                      <SelectItem key={tip} value={tip}>{tip}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cari Kodu</TableHead>
-                    <TableHead>Cari Adı</TableHead>
-                    <TableHead>Tipi</TableHead>
-                    <TableHead>Telefon</TableHead>
-                    <TableHead>Hesap Sayısı</TableHead>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>İşlemler</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cariListesi.map((cari) => (
-                    <TableRow key={cari.id}>
-                      <TableCell className="font-medium">{cari.kod}</TableCell>
-                      <TableCell>{cari.ad}</TableCell>
-                      <TableCell>
-                        <Badge className={getTipColor(cari.tip)}>
-                          {cari.tip}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{cari.telefon}</TableCell>
-                      <TableCell>{cari.hesapSayisi}</TableCell>
-                      <TableCell>
-                        <Badge className={getDurumColor(cari.durum)}>
-                          {cari.durum}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleCariSelect(cari)}
-                        >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Düzenle
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <UltraProfessionalTable
+                columns={cariColumns}
+                data={cariListesi}
+                title="Cari Kayıtları"
+                description="Tüm müşteri, tedarikçi ve ortakları görüntüleyin"
+                searchPlaceholder="Cari adı, kodu veya tipi ara..."
+                enableSearch
+                enableFilters
+                enableExport
+                enableColumnVisibility
+                enableRowSelection
+                onAdd={handleYeniCari}
+                onEdit={(cari: any) => handleCariSelect(cari)}
+                onDelete={(cari: any) => {
+                  if (confirm(`${cari.ad} kaydını silmek istediğinizden emin misiniz?`)) {
+                    alert('Silme özelliği yakında eklenecek');
+                  }
+                }}
+                onExport={(format) => {
+                  alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                }}
+                onRefresh={() => window.location.reload()}
+                showMetrics
+                metrics={{
+                  total: cariListesi.length,
+                  active: cariListesi.filter(c => c.durum === 'Aktif').length,
+                  pending: cariListesi.filter(c => c.durum === 'Pasif').length,
+                  completed: cariListesi.filter(c => c.hesapSayisi > 0).length
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -437,58 +474,37 @@ export function CariTanimlama() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Hesap adı veya cari ara..." className="pl-10" />
-                </div>
-                <Select>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Cari filtrele" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tüm Cariler</SelectItem>
-                    {cariListesi.map((cari) => (
-                      <SelectItem key={cari.id} value={cari.id}>{cari.ad}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cari Adı</TableHead>
-                    <TableHead>Hesap Türü</TableHead>
-                    <TableHead>Açıklama</TableHead>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>İşlemler</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {hesapTurleri.map((hesap) => {
-                    const cari = cariListesi.find(c => c.id === hesap.cariId);
-                    return (
-                      <TableRow key={hesap.id}>
-                        <TableCell className="font-medium">{cari?.ad}</TableCell>
-                        <TableCell>{hesap.hesapAdi}</TableCell>
-                        <TableCell>{hesap.aciklama}</TableCell>
-                        <TableCell>
-                          <Badge className={getDurumColor(hesap.durum)}>
-                            {hesap.durum}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4 mr-1" />
-                            Düzenle
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <UltraProfessionalTable
+                columns={hesapColumns}
+                data={hesapTurleri}
+                title="Hesap Türleri"
+                description="Carilere ait hesap türlerini görüntüleyin ve yönetin"
+                searchPlaceholder="Hesap adı veya cari ara..."
+                enableSearch
+                enableFilters
+                enableExport
+                enableColumnVisibility
+                enableRowSelection
+                onEdit={(hesap: any) => {
+                  alert(`${hesap.hesapAdi} düzenleme özelliği yakında eklenecek`);
+                }}
+                onDelete={(hesap: any) => {
+                  if (confirm(`${hesap.hesapAdi} hesabını silmek istediğinizden emin misiniz?`)) {
+                    alert('Silme özelliği yakında eklenecek');
+                  }
+                }}
+                onExport={(format) => {
+                  alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+                }}
+                onRefresh={() => window.location.reload()}
+                showMetrics
+                metrics={{
+                  total: hesapTurleri.length,
+                  active: hesapTurleri.filter(h => h.durum === 'Aktif').length,
+                  pending: hesapTurleri.filter(h => h.durum === 'Pasif').length,
+                  completed: hesapTurleri.length
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>

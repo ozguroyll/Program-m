@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,13 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, FileText, Plus, Search, Edit, Trash2, Save, Download, Eye, Printer, Calculator, Package } from 'lucide-react';
+import { CalendarIcon, FileText, Plus, Save, Download, Eye, Printer, Calculator, Package, Trash2, DollarSign, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { UltraProfessionalTable } from '@/components/ui/ultra-professional-table';
 
 interface FaturaKalemi {
   id: string;
@@ -57,7 +59,80 @@ interface FaturaOzet {
 
 export function FaturaYonetimi() {
   const [selectedDate, setSelectedDate] = useState<Date>();
-  const [activeTab, setActiveTab] = useState('fatura-olustur');
+
+
+  const faturaColumns = [
+    {
+      accessorKey: 'faturaNo',
+      header: 'Fatura No',
+      cell: ({ row }: any) => (
+        <div className="font-medium">{row.getValue('faturaNo')}</div>
+      ),
+    },
+    {
+      accessorKey: 'faturatarihi',
+      header: 'Tarih',
+      cell: ({ row }: any) => (
+        <div>{new Date(row.getValue('faturatarihi')).toLocaleDateString('tr-TR')}</div>
+      ),
+    },
+    {
+      accessorKey: 'cariAdi',
+      header: 'Cari',
+      cell: ({ row }: any) => (
+        <div className="font-medium">{row.getValue('cariAdi')}</div>
+      ),
+    },
+    {
+      accessorKey: 'faturaType',
+      header: 'Tip',
+      cell: ({ row }: any) => {
+        const tip = row.getValue('faturaType') as string;
+        return (
+          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            tip === 'Satis' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+          }`}>
+            {tip === 'Satis' ? 'Satış' : 'Alış'}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'genelToplam',
+      header: 'Tutar',
+      cell: ({ row }: any) => (
+        <div className="text-right font-medium">
+          {formatCurrency(row.getValue('genelToplam'), row.original.dovizTipi)}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'durum',
+      header: 'Durum',
+      cell: ({ row }: any) => {
+        const durum = row.getValue('durum') as string;
+        return (
+          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDurumColor(durum)}`}>
+            {durum}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'İşlemler',
+      cell: ({ row }: any) => (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" title={`Fatura ${row.original.faturaNo} görüntüle`}>
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="sm" title={`Fatura ${row.original.faturaNo} indir`}>
+            <Download className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
   const [selectedCari, setSelectedCari] = useState('');
   const [faturaKalemleri, setFaturaKalemleri] = useState<FaturaKalemi[]>([]);
 
@@ -135,7 +210,7 @@ export function FaturaYonetimi() {
       araToplam: 68000,
       kdvToplam: 0,
       genelToplam: 68000,
-      durum: 'Beklemede',
+      durum: 'Taslak',
       aciklama: '2000 ton soya yağı satışı',
       kalemler: [],
       olusturanKullanici: 'Admin'
@@ -161,13 +236,7 @@ export function FaturaYonetimi() {
     }
   };
 
-  const getFaturaTypeColor = (tip: string) => {
-    switch (tip) {
-      case 'Satis': return 'bg-green-100 text-green-800';
-      case 'Alis': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+
 
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('tr-TR', {
@@ -197,27 +266,33 @@ export function FaturaYonetimi() {
     setFaturaKalemleri(faturaKalemleri.filter(kalem => kalem.id !== id));
   };
 
-  const hesaplaToplamlar = () => {
-    const araToplam = faturaKalemleri.reduce((toplam, kalem) => toplam + kalem.tutar, 0);
-    const kdvToplam = faturaKalemleri.reduce((toplam, kalem) => toplam + kalem.kdvTutari, 0);
-    return { araToplam, kdvToplam, genelToplam: araToplam + kdvToplam };
-  };
+
 
   return (
-    <div className="h-full p-6 bg-background">
-      <div className="flex items-center justify-between mb-6">
+    <div className="h-full flex flex-col p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Fatura Yönetimi</h2>
-          <p className="text-muted-foreground">Satış ve alış faturalarını oluşturun ve yönetin</p>
+          <p className="text-muted-foreground">Satış ve alış fatura işlemlerini yönetin</p>
         </div>
-        <Button className="bg-primary text-primary-foreground">
-          <Plus className="w-4 h-4 mr-2" />
-          Yeni Fatura
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline">
+            <FileText className="w-4 h-4 mr-2" />
+            Rapor Al
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Yeni Fatura
+          </Button>
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="dashboard" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="dashboard" className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
+            Dashboard
+          </TabsTrigger>
           <TabsTrigger value="fatura-olustur" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Fatura Oluştur
@@ -235,6 +310,351 @@ export function FaturaYonetimi() {
             Raporlar
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Bu Ay Satış</p>
+                  <p className="text-2xl font-bold text-green-600">$1,250,000</p>
+                  <p className="text-xs text-green-600 flex items-center mt-1">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    +12% geçen aya göre
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-full">
+                  <TrendingUp className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+            </Card>
+            
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Bu Ay Alış</p>
+                  <p className="text-2xl font-bold text-blue-600">$850,000</p>
+                  <p className="text-xs text-blue-600 flex items-center mt-1">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    +8% geçen aya göre
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <DollarSign className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </Card>
+            
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Bekleyen Faturalar</p>
+                  <p className="text-2xl font-bold text-orange-600">12</p>
+                  <p className="text-xs text-muted-foreground">Onay bekliyor</p>
+                </div>
+                <div className="p-3 bg-orange-100 rounded-full">
+                  <AlertCircle className="w-6 h-6 text-orange-600" />
+                </div>
+              </div>
+            </Card>
+            
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Ödenen Faturalar</p>
+                  <p className="text-2xl font-bold text-green-600">156</p>
+                  <p className="text-xs text-green-600 flex items-center mt-1">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    +5% geçen aya göre
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-full">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="fatura-olustur" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Fatura Bilgileri
+                  </CardTitle>
+                  <CardDescription>
+                    Yeni satış veya alış faturası oluşturun
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="fatura-no">Fatura No *</Label>
+                        <Input id="fatura-no" placeholder="Otomatik oluşturulacak" disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="fatura-tarihi">Fatura Tarihi *</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {selectedDate ? format(selectedDate, "dd/MM/yyyy", { locale: tr }) : "Tarih seçin"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={setSelectedDate}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="vade-tarihi">Vade Tarihi</Label>
+                        <Input id="vade-tarihi" type="date" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cari-secim">Cari *</Label>
+                        <Select value={selectedCari} onValueChange={setSelectedCari}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Cari seçin" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cariListesi.map((cari) => (
+                              <SelectItem key={cari.kod} value={cari.kod}>
+                                {cari.ad} - {cari.kod}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sirket">Şirket *</Label>
+                        <Select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Şirket seçin" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sirketler.map((sirket) => (
+                              <SelectItem key={sirket.kod} value={sirket.kod}>
+                                {sirket.ad}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="fatura-tipi">Fatura Tipi *</Label>
+                        <Select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Tip seçin" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="satis">Satış Faturası</SelectItem>
+                            <SelectItem value="alis">Alış Faturası</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="doviz">Döviz Tipi *</Label>
+                        <Select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Döviz seçin" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="TRY">TRY - Türk Lirası</SelectItem>
+                            <SelectItem value="USD">USD - Amerikan Doları</SelectItem>
+                            <SelectItem value="EUR">EUR - Euro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="durum">Durum</Label>
+                        <Select defaultValue="taslak">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="taslak">Taslak</SelectItem>
+                            <SelectItem value="onaylandi">Onaylandı</SelectItem>
+                            <SelectItem value="iptal">İptal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="aciklama">Açıklama</Label>
+                      <Textarea 
+                        id="aciklama" 
+                        placeholder="Fatura açıklaması..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="mt-6">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Fatura Kalemleri</CardTitle>
+                    <Button onClick={yeniKalemEkle} size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Kalem Ekle
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {faturaKalemleri.map((kalem) => (
+                      <div key={kalem.id} className="grid grid-cols-12 gap-2 items-end p-4 border rounded-lg">
+                        <div className="col-span-3">
+                          <Label>Ürün</Label>
+                          <Select>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Ürün seçin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {urunListesi.map((urun) => (
+                                <SelectItem key={urun.kod} value={urun.kod}>
+                                  {urun.ad}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Miktar</Label>
+                          <Input type="number" placeholder="0" />
+                        </div>
+                        <div className="col-span-1">
+                          <Label>Birim</Label>
+                          <Select defaultValue="Ton">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Ton">Ton</SelectItem>
+                              <SelectItem value="Kg">Kg</SelectItem>
+                              <SelectItem value="Adet">Adet</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Birim Fiyat</Label>
+                          <Input type="number" placeholder="0.00" />
+                        </div>
+                        <div className="col-span-1">
+                          <Label>KDV %</Label>
+                          <Select defaultValue="18">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">%0</SelectItem>
+                              <SelectItem value="8">%8</SelectItem>
+                              <SelectItem value="18">%18</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-2">
+                          <Label>Toplam</Label>
+                          <Input value="0.00" disabled />
+                        </div>
+                        <div className="col-span-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => kalemSil(kalem.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {faturaKalemleri.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        Henüz kalem eklenmedi. "Kalem Ekle" butonuna tıklayarak başlayın.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Fatura Özeti</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Ara Toplam:</span>
+                      <span className="font-medium">$0.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>KDV Toplam:</span>
+                      <span className="font-medium">$0.00</span>
+                    </div>
+                    <div className="border-t pt-3">
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Genel Toplam:</span>
+                        <span>$0.00</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Fatura Önizleme</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div><strong>Şirket:</strong> -</div>
+                    <div><strong>Cari:</strong> {selectedCari ? cariListesi.find(c => c.kod === selectedCari)?.ad : '-'}</div>
+                    <div><strong>Tarih:</strong> {selectedDate ? format(selectedDate, 'dd/MM/yyyy', { locale: tr }) : '-'}</div>
+                    <div><strong>Kalem Sayısı:</strong> {faturaKalemleri.length}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-3">
+                <Button className="w-full bg-primary text-primary-foreground">
+                  <Save className="w-4 h-4 mr-2" />
+                  Faturayı Kaydet
+                </Button>
+                <Button variant="outline" className="w-full">
+                  <Eye className="w-4 h-4 mr-2" />
+                  Önizleme
+                </Button>
+                <Button variant="outline" className="w-full">
+                  <Download className="w-4 h-4 mr-2" />
+                  PDF İndir
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
 
         <TabsContent value="fatura-olustur" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -503,107 +923,133 @@ export function FaturaYonetimi() {
           </div>
         </TabsContent>
 
-        <TabsContent value="fatura-listesi" className="space-y-6">
+        <TabsContent value="fatura-listesi" className="flex-1">
+          <UltraProfessionalTable
+            data={faturalar}
+            columns={faturaColumns}
+            title="Fatura Kayıtları"
+            description="Satış ve alış fatura listesi"
+            searchPlaceholder="Fatura no, cari adı veya açıklama ile ara..."
+            enableSearch
+            enableFilters
+            enableExport
+            enableColumnVisibility
+            enableRowSelection
+            onExport={(format) => {
+              alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
+            }}
+            onRefresh={() => window.location.reload()}
+            showMetrics
+            metrics={{
+              total: faturalar.length,
+              active: faturalar.filter(f => f.durum === 'Onaylandi').length,
+              pending: faturalar.filter(f => f.durum === 'Taslak').length,
+              completed: faturalar.filter(f => f.durum === 'Odendi').length
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="fatura-takip" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Fatura Listesi
+                <Eye className="w-5 h-5" />
+                Fatura Takip
               </CardTitle>
               <CardDescription>
-                Tüm satış ve alış faturalarını görüntüleyin
+                Fatura durumlarını ve ödeme takibini yapın
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Fatura no, cari adı veya açıklama ara..." className="pl-10" />
-                </div>
-                <Select>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Fatura tipi" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tümü</SelectItem>
-                    <SelectItem value="satis">Satış</SelectItem>
-                    <SelectItem value="alis">Alış</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Durum" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tümü</SelectItem>
-                    <SelectItem value="taslak">Taslak</SelectItem>
-                    <SelectItem value="onaylandi">Onaylandı</SelectItem>
-                    <SelectItem value="odendi">Ödendi</SelectItem>
-                    <SelectItem value="iptal">İptal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg text-green-600">Ödenen Faturalar</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">$87,500</div>
+                    <div className="text-sm text-muted-foreground">1 fatura</div>
+                  </CardContent>
+                </Card>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fatura No</TableHead>
-                    <TableHead>Tarih</TableHead>
-                    <TableHead>Cari</TableHead>
-                    <TableHead>Tip</TableHead>
-                    <TableHead>Şirket</TableHead>
-                    <TableHead>Tutar</TableHead>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>İşlemler</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {faturalar.map((fatura) => (
-                    <TableRow key={fatura.id}>
-                      <TableCell className="font-medium">{fatura.faturaNo}</TableCell>
-                      <TableCell>{new Date(fatura.faturatarihi).toLocaleDateString('tr-TR')}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{fatura.cariAdi}</div>
-                          <div className="text-sm text-muted-foreground">{fatura.cariKodu}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getFaturaTypeColor(fatura.faturaType)}>
-                          {fatura.faturaType === 'Satis' ? 'Satış' : 'Alış'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{fatura.sirket}</TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(fatura.genelToplam, fatura.dovizTipi)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getDurumColor(fatura.durum)}>
-                          {fatura.durum}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="w-4 h-4 mr-1" />
-                            Görüntüle
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4 mr-1" />
-                            Düzenle
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Download className="w-4 h-4 mr-1" />
-                            PDF
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg text-yellow-600">Bekleyen Ödemeler</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">$68,000</div>
+                    <div className="text-sm text-muted-foreground">1 fatura</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg text-red-600">Vadesi Geçenler</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">$0</div>
+                    <div className="text-sm text-muted-foreground">0 fatura</div>
+                  </CardContent>
+                </Card>
+              </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="raporlar" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Toplam Satış</CardTitle>
+                <CardDescription>Bu ay toplam satış</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {formatCurrency(faturaOzet.toplamSatisFatura, 'USD')}
+                </div>
+                <div className="text-sm text-muted-foreground">2 fatura</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Toplam Alış</CardTitle>
+                <CardDescription>Bu ay toplam alış</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {formatCurrency(faturaOzet.toplamAlisFatura, 'USD')}
+                </div>
+                <div className="text-sm text-muted-foreground">1 fatura</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Net Kar</CardTitle>
+                <CardDescription>Satış - Alış farkı</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(faturaOzet.toplamSatisFatura - faturaOzet.toplamAlisFatura, 'USD')}
+                </div>
+                <div className="text-sm text-muted-foreground">Bu ay</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Bekleyen Ödemeler</CardTitle>
+                <CardDescription>Tahsil edilecek</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {formatCurrency(faturaOzet.bekleyenOdemeler, 'USD')}
+                </div>
+                <div className="text-sm text-muted-foreground">{faturaOzet.odenmemisFaturalar} fatura</div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="fatura-takip" className="space-y-6">

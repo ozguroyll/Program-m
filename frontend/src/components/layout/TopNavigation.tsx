@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,29 +26,27 @@ import {
 export function TopNavigation() {
   const [isDark, setIsDark] = useState(false);
   const [exchangeRates, setExchangeRates] = useState<Map<string, ExchangeRate>>(new Map());
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const exchangeService = ExchangeRateService.getInstance();
 
-  const loadExchangeRates = async () => {
+  const loadExchangeRates = useCallback(async () => {
     try {
       setIsRefreshing(true);
       const rates = await exchangeService.getRates();
       setExchangeRates(rates);
-      setLastUpdate(exchangeService.getLastUpdateTime());
     } catch (error) {
-      console.error('Döviz kurları yüklenemedi:', error);
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [exchangeService]);
 
   useEffect(() => {
     loadExchangeRates();
     const interval = setInterval(loadExchangeRates, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadExchangeRates]);
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -78,14 +76,72 @@ export function TopNavigation() {
             <DollarSign className="h-4 w-4" />
             <span>Döviz:</span>
             {Array.from(exchangeRates.entries()).map(([currency, rate]) => (
-              <Badge 
-                key={currency} 
-                variant="outline" 
-                className="text-xs cursor-pointer hover:bg-muted" 
-                title={`TCMB - Alış: ₺${rate.buyRate.toFixed(4)} | Satış: ₺${rate.sellRate.toFixed(4)}\nEfektif Alış: ₺${rate.banknoteByRate.toFixed(4)} | Efektif Satış: ₺${rate.banknoteSellRate.toFixed(4)}`}
-              >
-                {currency}: ₺{rate.buyRate.toFixed(2)}/₺{rate.sellRate.toFixed(2)}
-              </Badge>
+              <DropdownMenu key={currency}>
+                <DropdownMenuTrigger asChild>
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs cursor-pointer hover:bg-muted transition-colors"
+                  >
+                    <span className="flex items-center gap-1">
+                      {currency}: ₺{rate.buyRate.toFixed(3)}
+                      <span className={`text-xs ${rate.changePercent && rate.changePercent > 0 ? 'text-green-600' : rate.changePercent && rate.changePercent < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {exchangeService.getChangeIcon(rate.changePercent)}
+                      </span>
+                    </span>
+                  </Badge>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-80">
+                  <DropdownMenuLabel className="text-center font-semibold">
+                    {currency} - TCMB Kurları
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="p-3 space-y-3">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-1">
+                        <div className="font-medium text-green-700">Alış Kurları</div>
+                        <div className="flex justify-between">
+                          <span>Döviz Alış:</span>
+                          <span className="font-mono">₺{rate.buyRate.toFixed(4)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Efektif Alış:</span>
+                          <span className="font-mono">₺{rate.banknoteByRate.toFixed(4)}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="font-medium text-red-700">Satış Kurları</div>
+                        <div className="flex justify-between">
+                          <span>Döviz Satış:</span>
+                          <span className="font-mono">₺{rate.sellRate.toFixed(4)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Efektif Satış:</span>
+                          <span className="font-mono">₺{rate.banknoteSellRate.toFixed(4)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <div className="flex justify-between">
+                        <span>Günlük Değişim:</span>
+                        <span className={`font-medium ${rate.changePercent && rate.changePercent > 0 ? 'text-green-600' : rate.changePercent && rate.changePercent < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                          {rate.changePercent ? `${rate.changePercent > 0 ? '+' : ''}${rate.changePercent.toFixed(2)}%` : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Piyasa Durumu:</span>
+                        <span className={`font-medium ${exchangeService.getMarketStatus() === 'open' ? 'text-green-600' : 'text-orange-600'}`}>
+                          {exchangeService.getMarketStatus() === 'open' ? 'Açık' : exchangeService.getMarketStatus() === 'closed' ? 'Kapalı' : 'Hafta Sonu'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Son Güncelleme:</span>
+                        <span>{new Date(rate.lastUpdated).toLocaleString('tr-TR')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ))}
             <Button
               variant="ghost"
@@ -97,11 +153,9 @@ export function TopNavigation() {
             >
               <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            {lastUpdate && (
-              <span className="text-xs text-muted-foreground ml-2">
-                {lastUpdate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
+            <span className="text-xs text-muted-foreground ml-2">
+              {exchangeService.getLastUpdateTime()}
+            </span>
           </div>
         </div>
 

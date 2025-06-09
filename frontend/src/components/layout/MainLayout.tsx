@@ -12,12 +12,11 @@ import { CariTanimlama } from '../modules/CariTanimlama';
 import { CariIslemler } from '../modules/CariIslemler';
 import { FaturaYonetimi } from '../modules/FaturaYonetimi';
 import { KasaYonetimi } from '../modules/KasaYonetimi';
-import { BankaYonetimi } from '../modules/BankaYonetimi';
-import { GelirGiderYonetimi } from '../modules/GelirGiderYonetimi';
+import BankaYonetimi from '../modules/BankaYonetimi';
+import GelirGiderYonetimi from '../modules/GelirGiderYonetimi';
+import { EnhancedDashboardMetrics, QuickActions, RecentActivities } from '../ui/enhanced-dashboard-metrics';
 
-interface MainLayoutProps {}
-
-export function MainLayout({}: MainLayoutProps) {
+export function MainLayout() {
   const [leftPanelOpen] = useState(true);
   const [rightPanelOpen] = useState(true);
   const [openTabs, setOpenTabs] = useState<Array<{ id: string; title: string; module: string }>>([
@@ -87,10 +86,27 @@ export function MainLayout({}: MainLayoutProps) {
                   {openTabs.map((tab) => (
                     <TabsContent key={tab.id} value={tab.id} className="h-full m-0 p-0">
                       {tab.id === 'dashboard' ? (
-                        <div className="h-full flex items-center justify-center p-4">
-                          <div className="text-center">
-                            <h2 className="text-2xl font-bold mb-4">Stok Muhasebe Sistemi</h2>
-                            <p className="text-muted-foreground">Sol menüden bir modül seçerek başlayın</p>
+                        <div className="h-full overflow-auto p-6 bg-gray-50">
+                          <div className="max-w-7xl mx-auto space-y-6">
+                            <div className="text-center mb-8">
+                              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                                Stok Muhasebe Sistemi
+                              </h1>
+                              <p className="text-lg text-gray-600">
+                                Profesyonel çok-şirketli ticaret yönetim platformu
+                              </p>
+                            </div>
+                            
+                            <EnhancedDashboardMetrics />
+                            
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              <QuickActions className="lg:col-span-1" />
+                              <RecentActivities className="lg:col-span-2" />
+                            </div>
+                            
+                            <div className="text-center text-sm text-gray-500 mt-8">
+                              Sol menüden bir modül seçerek detaylı işlemlere başlayabilirsiniz
+                            </div>
                           </div>
                         </div>
                       ) : tab.id === 'talep-yonetimi' ? (
