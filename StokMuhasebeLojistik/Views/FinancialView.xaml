@@ -1,0 +1,170 @@
+<UserControl x:Class="StokMuhasebeLojistik.Views.FinancialView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:StokMuhasebeLojistik.Views">
+    
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="Finansal Yönetim Paneli" Style="{StaticResource HeaderTextStyle}"/>
+            
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Finansal Özet" Style="{StaticResource SubHeaderTextStyle}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="TL Toplam Bakiye" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock Text="{Binding FinancialSummary[TL], StringFormat='{}{0:C}'}" 
+                                      FontSize="28" FontWeight="Bold" Foreground="#2196F3"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="USD Toplam Bakiye" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock Text="{Binding FinancialSummary[USD], StringFormat='${0:F2}'}" 
+                                      FontSize="28" FontWeight="Bold" Foreground="#4CAF50"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="EUR Toplam Bakiye" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock Text="{Binding FinancialSummary[EUR], StringFormat='€{0:F2}'}" 
+                                      FontSize="28" FontWeight="Bold" Foreground="#FF9800"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Banka Hesapları" Style="{StaticResource SubHeaderTextStyle}"/>
+                            <Button Content="Yeni Hesap" 
+                                   Style="{StaticResource ModernButtonStyle}"
+                                   Command="{Binding StartAddBankAccountCommand}"
+                                   Margin="20,0,0,0"/>
+                        </StackPanel>
+                        
+                        <DataGrid ItemsSource="{Binding BankAccounts}" 
+                                 Style="{StaticResource ModernDataGridStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Banka" Binding="{Binding BankName}" Width="150"/>
+                                <DataGridTextColumn Header="Hesap No" Binding="{Binding AccountNumber}" Width="120"/>
+                                <DataGridTextColumn Header="Para Birimi" Binding="{Binding Currency}" Width="80"/>
+                                <DataGridTextColumn Header="Bakiye" Binding="{Binding Balance, StringFormat='{}{0:C}'}" Width="120"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        
+                        <StackPanel Visibility="{Binding IsAddingBankAccount, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"
+                                   Margin="0,20,0,0">
+                            <TextBlock Text="Yeni Banka Hesabı" Style="{StaticResource SubHeaderTextStyle}"/>
+                            
+                            <TextBlock Text="Banka Adı:" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBox Text="{Binding NewBankAccount.BankName}" Style="{StaticResource ModernTextBoxStyle}"/>
+                            
+                            <TextBlock Text="Hesap No:" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBox Text="{Binding NewBankAccount.AccountNumber}" Style="{StaticResource ModernTextBoxStyle}"/>
+                            
+                            <TextBlock Text="IBAN:" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBox Text="{Binding NewBankAccount.IBAN}" Style="{StaticResource ModernTextBoxStyle}"/>
+                            
+                            <TextBlock Text="Para Birimi:" Style="{StaticResource LabelTextStyle}"/>
+                            <ComboBox SelectedValue="{Binding NewBankAccount.Currency}" Style="{StaticResource ModernComboBoxStyle}">
+                                <ComboBoxItem Content="TL" Tag="TL"/>
+                                <ComboBoxItem Content="USD" Tag="USD"/>
+                                <ComboBoxItem Content="EUR" Tag="EUR"/>
+                            </ComboBox>
+                            
+                            <TextBlock Text="Başlangıç Bakiyesi:" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBox Text="{Binding NewBankAccount.Balance}" Style="{StaticResource ModernTextBoxStyle}"/>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="Kaydet" 
+                                       Style="{StaticResource ModernButtonStyle}"
+                                       Command="{Binding SaveBankAccountCommand}"/>
+                                <Button Content="İptal" 
+                                       Style="{StaticResource SecondaryButtonStyle}"
+                                       Command="{Binding CancelAddBankAccountCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                
+                <Border Grid.Column="1" Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Kasa Hesapları" Style="{StaticResource SubHeaderTextStyle}"/>
+                            <Button Content="Yeni Kasa" 
+                                   Style="{StaticResource ModernButtonStyle}"
+                                   Command="{Binding StartAddCashAccountCommand}"
+                                   Margin="20,0,0,0"/>
+                        </StackPanel>
+                        
+                        <DataGrid ItemsSource="{Binding CashAccounts}" 
+                                 Style="{StaticResource ModernDataGridStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kasa Adı" Binding="{Binding Name}" Width="150"/>
+                                <DataGridTextColumn Header="Para Birimi" Binding="{Binding Currency}" Width="80"/>
+                                <DataGridTextColumn Header="Bakiye" Binding="{Binding Balance, StringFormat='{}{0:C}'}" Width="120"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        
+                        <StackPanel Visibility="{Binding IsAddingCashAccount, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"
+                                   Margin="0,20,0,0">
+                            <TextBlock Text="Yeni Kasa Hesabı" Style="{StaticResource SubHeaderTextStyle}"/>
+                            
+                            <TextBlock Text="Kasa Adı:" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBox Text="{Binding NewCashAccount.Name}" Style="{StaticResource ModernTextBoxStyle}"/>
+                            
+                            <TextBlock Text="Para Birimi:" Style="{StaticResource LabelTextStyle}"/>
+                            <ComboBox SelectedValue="{Binding NewCashAccount.Currency}" Style="{StaticResource ModernComboBoxStyle}">
+                                <ComboBoxItem Content="TL" Tag="TL"/>
+                                <ComboBoxItem Content="USD" Tag="USD"/>
+                                <ComboBoxItem Content="EUR" Tag="EUR"/>
+                            </ComboBox>
+                            
+                            <TextBlock Text="Başlangıç Bakiyesi:" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBox Text="{Binding NewCashAccount.Balance}" Style="{StaticResource ModernTextBoxStyle}"/>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="Kaydet" 
+                                       Style="{StaticResource ModernButtonStyle}"
+                                       Command="{Binding SaveCashAccountCommand}"/>
+                                <Button Content="İptal" 
+                                       Style="{StaticResource SecondaryButtonStyle}"
+                                       Command="{Binding CancelAddCashAccountCommand}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+            
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Son İşlemler" Style="{StaticResource SubHeaderTextStyle}"/>
+                    <DataGrid ItemsSource="{Binding RecentTransactions}" 
+                             Style="{StaticResource ModernDataGridStyle}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="İşlem No" Binding="{Binding TransactionNumber}" Width="120"/>
+                            <DataGridTextColumn Header="Tarih" Binding="{Binding TransactionDate, StringFormat='{}{0:dd.MM.yyyy}'}" Width="100"/>
+                            <DataGridTextColumn Header="Tip" Binding="{Binding Type}" Width="100"/>
+                            <DataGridTextColumn Header="Tutar" Binding="{Binding Amount, StringFormat='{}{0:C}'}" Width="120"/>
+                            <DataGridTextColumn Header="Para Birimi" Binding="{Binding Currency}" Width="80"/>
+                            <DataGridTextColumn Header="Cari" Binding="{Binding CurrentAccount.Name}" Width="150"/>
+                            <DataGridTextColumn Header="Açıklama" Binding="{Binding Description}" Width="200"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,133 @@
+<Window x:Class="StokMuhasebeLojistik.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Title}" 
+        Height="800" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <Border Grid.Row="0" Background="#2196F3" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{Binding Title}" 
+                              Foreground="White" 
+                              FontSize="18" 
+                              FontWeight="Bold"
+                              VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding CurrentUser.Company.Name, StringFormat=' - {0}'}" 
+                              Foreground="White" 
+                              FontSize="14"
+                              VerticalAlignment="Center"
+                              Margin="10,0,0,0"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock Text="{Binding CurrentUser.FullName}" 
+                              Foreground="White" 
+                              FontSize="14"
+                              VerticalAlignment="Center"
+                              Margin="0,0,15,0"/>
+                    <Button Content="Çıkış" 
+                           Style="{StaticResource SecondaryButtonStyle}"
+                           Command="{Binding LogoutCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <Border Grid.Column="0" Background="#F8F9FA" BorderBrush="#E9ECEF" BorderThickness="0,0,1,0">
+                <StackPanel Margin="10">
+                    <Button Content="Ana Sayfa" 
+                           Style="{StaticResource ModernButtonStyle}"
+                           Command="{Binding SelectModuleCommand}"
+                           CommandParameter="Dashboard"
+                           Margin="0,5"/>
+                    
+                    <Button Content="Stok Yönetimi" 
+                           Style="{StaticResource ModernButtonStyle}"
+                           Command="{Binding SelectModuleCommand}"
+                           CommandParameter="Stok"
+                           Margin="0,5"/>
+                    
+                    <Button Content="Muhasebe" 
+                           Style="{StaticResource ModernButtonStyle}"
+                           Command="{Binding SelectModuleCommand}"
+                           CommandParameter="Muhasebe"
+                           Margin="0,5"/>
+                    
+                    <Button Content="Lojistik" 
+                           Style="{StaticResource ModernButtonStyle}"
+                           Command="{Binding SelectModuleCommand}"
+                           CommandParameter="Lojistik"
+                           Margin="0,5"/>
+                    
+                    <Button Content="Finansal Panel" 
+                           Style="{StaticResource ModernButtonStyle}"
+                           Command="{Binding SelectModuleCommand}"
+                           CommandParameter="Finans"
+                           Margin="0,5"/>
+                </StackPanel>
+            </Border>
+            
+            <ContentControl Grid.Column="1" x:Name="MainContent" Margin="20">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedModule}" Value="Dashboard">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <local:DashboardView DataContext="{Binding}"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SelectedModule}" Value="Stok">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <local:StockView/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SelectedModule}" Value="Muhasebe">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <local:AccountingView/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SelectedModule}" Value="Lojistik">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <local:LogisticsView/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SelectedModule}" Value="Finans">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <local:FinancialView/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
+        </Grid>
+    </Grid>
+</Window>

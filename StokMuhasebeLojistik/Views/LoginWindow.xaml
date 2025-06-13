@@ -1,0 +1,54 @@
+<Window x:Class="StokMuhasebeLojistik.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:StokMuhasebeLojistik.Views"
+        Title="Giriş Yap - Stok Muhasebe Lojistik" 
+        Height="400" Width="500"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#F5F5F5">
+    
+    <Grid>
+        <Border Style="{StaticResource CardStyle}" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                Width="400" Height="300">
+            <StackPanel>
+                <TextBlock Text="Stok Muhasebe Lojistik" 
+                          Style="{StaticResource HeaderTextStyle}"
+                          HorizontalAlignment="Center"/>
+                
+                <TextBlock Text="Sisteme Giriş" 
+                          Style="{StaticResource SubHeaderTextStyle}"
+                          HorizontalAlignment="Center"
+                          Margin="0,0,0,30"/>
+
+                <TextBlock Text="Kullanıcı Adı:" Style="{StaticResource LabelTextStyle}"/>
+                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" 
+                        Style="{StaticResource ModernTextBoxStyle}"/>
+
+                <TextBlock Text="Şifre:" Style="{StaticResource LabelTextStyle}" Margin="0,10,0,5"/>
+                <PasswordBox x:Name="PasswordBox" 
+                            Style="{StaticResource ModernTextBoxStyle}"
+                            PasswordChanged="PasswordBox_PasswordChanged"/>
+
+                <TextBlock Text="{Binding ErrorMessage}" 
+                          Foreground="Red" 
+                          FontSize="12"
+                          Margin="5,10,5,0"
+                          Visibility="{Binding ErrorMessage, Converter={x:Static local:StringToVisibilityConverter.Instance}}"/>
+
+                <Button Content="Giriş Yap" 
+                       Style="{StaticResource ModernButtonStyle}"
+                       Command="{Binding LoginCommand}"
+                       IsEnabled="{Binding IsBusy, Converter={x:Static local:InverseBooleanConverter.Instance}}"
+                       Margin="0,20,0,0"/>
+
+                <ProgressBar IsIndeterminate="True" 
+                           Height="4"
+                           Margin="0,10,0,0"
+                           Visibility="{Binding IsBusy, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
