@@ -1,0 +1,268 @@
+
+' ===== MODÜL: modMain =====
+Option Explicit
+
+Public Sub SistemBaslat()
+    Application.ScreenUpdating = False
+    
+    ' Sistem başlatma işlemleri
+    Call VeriTabloOlustur
+    Call DashboardGuncelle
+    Call OzelSeritOlustur
+    
+    Application.ScreenUpdating = True
+    MsgBox "Stok Yönetim Sistemi başarıyla başlatıldı!", vbInformation, "Sistem Hazır"
+End Sub
+
+Public Sub VeriTabloOlustur()
+    ' Excel tablolarını oluştur
+    Dim ws As Worksheet
+    
+    ' Stok Hareketleri tablosunu Excel Table olarak tanımla
+    Set ws = ThisWorkbook.Worksheets("Stok_Hareketleri")
+    If ws.ListObjects.Count = 0 Then
+        ws.ListObjects.Add(xlSrcRange, ws.Range("A1").CurrentRegion, , xlYes).Name = "tblStokHareketleri"
+    End If
+    
+    ' Diğer master data tablolarını da tanımla
+    Call TabloTanimla("Sirketler", "tblSirketler")
+    Call TabloTanimla("Ortaklar", "tblOrtaklar")
+    Call TabloTanimla("Urunler", "tblUrunler")
+    Call TabloTanimla("Depolar", "tblDepolar")
+    Call TabloTanimla("Dil_Cevirileri", "tblDilCevirileri")
+End Sub
+
+Private Sub TabloTanimla(sayfaAdi As String, tabloAdi As String)
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets(sayfaAdi)
+    If ws.ListObjects.Count = 0 Then
+        ws.ListObjects.Add(xlSrcRange, ws.Range("A1").CurrentRegion, , xlYes).Name = tabloAdi
+    End If
+End Sub
+
+Public Sub DashboardGuncelle()
+    ' Dashboard verilerini güncelle
+    Dim wsDash As Worksheet
+    Set wsDash = ThisWorkbook.Worksheets("Dashboard")
+    
+    ' KPI değerlerini hesapla ve güncelle
+    Application.Calculate
+    
+    ' Grafikleri güncelle (varsa)
+    Dim cht As ChartObject
+    For Each cht In wsDash.ChartObjects
+        cht.Chart.Refresh
+    Next cht
+End Sub
+
+Public Sub OzelSeritOlustur()
+    ' Özel ribbon sekmesi oluştur
+    ' Bu kısım Excel'de manuel olarak yapılacak
+End Sub
+
+' ===== MODÜL: modStokGiris =====
+Public Sub StokGirisFormuAc()
+    frmStokGiris.Show
+End Sub
+
+Public Function StokGirisKaydet(urunID As Long, miktar As Double, birimFiyat As Double, _
+                               paraBirimi As String, depoID As Long, sirketID As Long, _
+                               ortakID As Long, tedarikci As String, Optional aracPlaka As String = "", _
+                               Optional soforAdi As String = "", Optional soforTel As String = "", _
+                               Optional navlun As Double = 0, Optional masraflar As Double = 0) As Boolean
+    
+    On Error GoTo Hata
+    
+    ' Veri doğrulama
+    If Not VeriDogrula(urunID, miktar, birimFiyat, depoID) Then
+        StokGirisKaydet = False
+        Exit Function
+    End If
+    
+    ' Kapasite kontrolü
+    If Not KapasiteKontrol(depoID, miktar) Then
+        MsgBox "Depo kapasitesi yetersiz!", vbExclamation
+        StokGirisKaydet = False
+        Exit Function
+    End If
+    
+    ' Yeni kayıt ekle
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("Stok_Hareketleri")
+    
+    Dim sonSatir As Long
+    sonSatir = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+    
+    ' Yeni ID oluştur
+    Dim yeniID As Long
+    yeniID = ws.Cells(sonSatir - 1, 1).Value + 1
+    
+    ' Verileri kaydet
+    With ws
+        .Cells(sonSatir, 1).Value = yeniID
+        .Cells(sonSatir, 2).Value = Now
+        .Cells(sonSatir, 3).Value = "Giriş"
+        .Cells(sonSatir, 4).Value = urunID
+        .Cells(sonSatir, 5).Value = miktar
+        .Cells(sonSatir, 6).Value = birimFiyat
+        .Cells(sonSatir, 7).Value = paraBirimi
+        .Cells(sonSatir, 8).Value = depoID
+        .Cells(sonSatir, 9).Value = sirketID
+        .Cells(sonSatir, 10).Value = ortakID
+        .Cells(sonSatir, 11).Value = tedarikci
+        .Cells(sonSatir, 13).Value = aracPlaka
+        .Cells(sonSatir, 14).Value = soforAdi
+        .Cells(sonSatir, 15).Value = soforTel
+        .Cells(sonSatir, 16).Value = navlun
+        .Cells(sonSatir, 17).Value = masraflar
+        .Cells(sonSatir, 19).Value = "Tamamlandı"
+    End With
+    
+    ' Dashboard güncelle
+    Call DashboardGuncelle
+    
+    StokGirisKaydet = True
+    MsgBox "Stok girişi başarıyla kaydedildi!", vbInformation
+    Exit Function
+    
+Hata:
+    MsgBox "Hata: " & Err.Description, vbCritical
+    StokGirisKaydet = False
+End Function
+
+' ===== MODÜL: modStokCikis =====
+Public Sub StokCikisFormuAc()
+    frmStokCikis.Show
+End Sub
+
+Public Function StokCikisKaydet(urunID As Long, miktar As Double, satisFiyat As Double, _
+                               paraBirimi As String, depoID As Long, sirketID As Long, _
+                               ortakID As Long, musteri As String, Optional aracPlaka As String = "", _
+                               Optional soforAdi As String = "", Optional soforTel As String = "", _
+                               Optional navlun As Double = 0, Optional komisyon As Double = 0) As Boolean
+    
+    On Error GoTo Hata
+    
+    ' Stok yeterlilik kontrolü
+    If Not StokYeterlilikKontrol(urunID, depoID, ortakID, miktar) Then
+        MsgBox "Yetersiz stok!", vbExclamation
+        StokCikisKaydet = False
+        Exit Function
+    End If
+    
+    ' Yeni kayıt ekle
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("Stok_Hareketleri")
+    
+    Dim sonSatir As Long
+    sonSatir = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+    
+    Dim yeniID As Long
+    yeniID = ws.Cells(sonSatir - 1, 1).Value + 1
+    
+    ' Verileri kaydet
+    With ws
+        .Cells(sonSatir, 1).Value = yeniID
+        .Cells(sonSatir, 2).Value = Now
+        .Cells(sonSatir, 3).Value = "Çıkış"
+        .Cells(sonSatir, 4).Value = urunID
+        .Cells(sonSatir, 5).Value = miktar
+        .Cells(sonSatir, 6).Value = satisFiyat
+        .Cells(sonSatir, 7).Value = paraBirimi
+        .Cells(sonSatir, 8).Value = depoID
+        .Cells(sonSatir, 9).Value = sirketID
+        .Cells(sonSatir, 10).Value = ortakID
+        .Cells(sonSatir, 12).Value = musteri
+        .Cells(sonSatir, 13).Value = aracPlaka
+        .Cells(sonSatir, 14).Value = soforAdi
+        .Cells(sonSatir, 15).Value = soforTel
+        .Cells(sonSatir, 16).Value = navlun
+        .Cells(sonSatir, 18).Value = komisyon
+        .Cells(sonSatir, 19).Value = "Tamamlandı"
+    End With
+    
+    Call DashboardGuncelle
+    
+    StokCikisKaydet = True
+    MsgBox "Stok çıkışı başarıyla kaydedildi!", vbInformation
+    Exit Function
+    
+Hata:
+    MsgBox "Hata: " & Err.Description, vbCritical
+    StokCikisKaydet = False
+End Function
+
+' ===== YARDIMCI FONKSİYONLAR =====
+Private Function VeriDogrula(urunID As Long, miktar As Double, birimFiyat As Double, depoID As Long) As Boolean
+    VeriDogrula = True
+    
+    If urunID <= 0 Then
+        MsgBox "Geçerli bir ürün seçiniz!", vbExclamation
+        VeriDogrula = False
+    ElseIf miktar <= 0 Then
+        MsgBox "Miktar sıfırdan büyük olmalıdır!", vbExclamation
+        VeriDogrula = False
+    ElseIf birimFiyat <= 0 Then
+        MsgBox "Birim fiyat sıfırdan büyük olmalıdır!", vbExclamation
+        VeriDogrula = False
+    ElseIf depoID <= 0 Then
+        MsgBox "Geçerli bir depo seçiniz!", vbExclamation
+        VeriDogrula = False
+    End If
+End Function
+
+Private Function KapasiteKontrol(depoID As Long, miktar As Double) As Boolean
+    ' Depo kapasitesi kontrolü
+    Dim wsDepolar As Worksheet
+    Set wsDepolar = ThisWorkbook.Worksheets("Depolar")
+    
+    Dim kapasite As Double
+    Dim mevcutStok As Double
+    
+    ' Depo kapasitesini bul
+    Dim i As Long
+    For i = 2 To wsDepolar.Cells(wsDepolar.Rows.Count, 1).End(xlUp).Row
+        If wsDepolar.Cells(i, 1).Value = depoID Then
+            kapasite = wsDepolar.Cells(i, 4).Value
+            Exit For
+        End If
+    Next i
+    
+    ' Mevcut stoku hesapla
+    mevcutStok = MevcutStokHesapla(depoID)
+    
+    KapasiteKontrol = (mevcutStok + miktar <= kapasite)
+End Function
+
+Private Function StokYeterlilikKontrol(urunID As Long, depoID As Long, ortakID As Long, miktar As Double) As Boolean
+    Dim mevcutStok As Double
+    mevcutStok = MevcutStokHesapla(depoID, urunID, ortakID)
+    StokYeterlilikKontrol = (mevcutStok >= miktar)
+End Function
+
+Private Function MevcutStokHesapla(Optional depoID As Long = 0, Optional urunID As Long = 0, Optional ortakID As Long = 0) As Double
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("Stok_Hareketleri")
+    
+    Dim toplam As Double
+    Dim i As Long
+    
+    For i = 2 To ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+        Dim kosulSagla As Boolean
+        kosulSagla = True
+        
+        If depoID > 0 And ws.Cells(i, 8).Value <> depoID Then kosulSagla = False
+        If urunID > 0 And ws.Cells(i, 4).Value <> urunID Then kosulSagla = False
+        If ortakID > 0 And ws.Cells(i, 10).Value <> ortakID Then kosulSagla = False
+        
+        If kosulSagla Then
+            If ws.Cells(i, 3).Value = "Giriş" Then
+                toplam = toplam + ws.Cells(i, 5).Value
+            ElseIf ws.Cells(i, 3).Value = "Çıkış" Then
+                toplam = toplam - ws.Cells(i, 5).Value
+            End If
+        End If
+    Next i
+    
+    MevcutStokHesapla = toplam
+End Function

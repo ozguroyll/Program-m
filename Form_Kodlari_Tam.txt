@@ -1,0 +1,128 @@
+
+' ===== FORM: frmStokGiris =====
+Private Sub UserForm_Initialize()
+    Call ComboBoxDoldur
+End Sub
+
+Private Sub ComboBoxDoldur()
+    ' Ürün ComboBox
+    Dim wsUrunler As Worksheet
+    Set wsUrunler = ThisWorkbook.Worksheets("Urunler")
+    
+    cmbUrun.Clear
+    Dim i As Long
+    For i = 2 To wsUrunler.Cells(wsUrunler.Rows.Count, 1).End(xlUp).Row
+        cmbUrun.AddItem wsUrunler.Cells(i, 2).Value
+    Next i
+    
+    ' Depo ComboBox
+    Dim wsDepolar As Worksheet
+    Set wsDepolar = ThisWorkbook.Worksheets("Depolar")
+    
+    cmbDepo.Clear
+    For i = 2 To wsDepolar.Cells(wsDepolar.Rows.Count, 1).End(xlUp).Row
+        cmbDepo.AddItem wsDepolar.Cells(i, 2).Value
+    Next i
+    
+    ' Ortak ComboBox
+    Dim wsOrtaklar As Worksheet
+    Set wsOrtaklar = ThisWorkbook.Worksheets("Ortaklar")
+    
+    cmbOrtak.Clear
+    For i = 2 To wsOrtaklar.Cells(wsOrtaklar.Rows.Count, 1).End(xlUp).Row
+        cmbOrtak.AddItem wsOrtaklar.Cells(i, 2).Value
+    Next i
+    
+    ' Para Birimi
+    cmbParaBirimi.Clear
+    cmbParaBirimi.AddItem "TRY"
+    cmbParaBirimi.AddItem "USD"
+    cmbParaBirimi.AddItem "EUR"
+End Sub
+
+Private Sub btnKaydet_Click()
+    ' Veri doğrulama
+    If cmbUrun.Value = "" Or txtMiktar.Value = "" Or txtBirimFiyat.Value = "" Then
+        MsgBox "Lütfen tüm zorunlu alanları doldurunuz!", vbExclamation
+        Exit Sub
+    End If
+    
+    ' ID'leri bul
+    Dim urunID As Long, depoID As Long, ortakID As Long, sirketID As Long
+    urunID = IDGetir("Urunler", cmbUrun.Value, 2)
+    depoID = IDGetir("Depolar", cmbDepo.Value, 2)
+    ortakID = IDGetir("Ortaklar", cmbOrtak.Value, 2)
+    sirketID = SirketIDGetir(ortakID)
+    
+    ' Stok girişi kaydet
+    Dim basarili As Boolean
+    basarili = StokGirisKaydet(urunID, CDbl(txtMiktar.Value), CDbl(txtBirimFiyat.Value), _
+                              cmbParaBirimi.Value, depoID, sirketID, ortakID, txtTedarikci.Value, _
+                              txtAracPlaka.Value, txtSoforAdi.Value, txtSoforTel.Value, _
+                              CDbl(IIf(txtNavlun.Value = "", 0, txtNavlun.Value)), _
+                              CDbl(IIf(txtMasraflar.Value = "", 0, txtMasraflar.Value)))
+    
+    If basarili Then
+        Call FormTemizle
+    End If
+End Sub
+
+Private Sub btnIptal_Click()
+    Unload Me
+End Sub
+
+Private Sub FormTemizle()
+    cmbUrun.Value = ""
+    txtMiktar.Value = ""
+    txtBirimFiyat.Value = ""
+    cmbParaBirimi.Value = ""
+    cmbDepo.Value = ""
+    cmbOrtak.Value = ""
+    txtTedarikci.Value = ""
+    txtAracPlaka.Value = ""
+    txtSoforAdi.Value = ""
+    txtSoforTel.Value = ""
+    txtNavlun.Value = ""
+    txtMasraflar.Value = ""
+End Sub
+
+' ===== FORM: frmStokCikis =====
+Private Sub UserForm_Initialize()
+    Call ComboBoxDoldur
+End Sub
+
+Private Sub btnKaydet_Click()
+    ' Benzer şekilde stok çıkış işlemi
+    ' ... (kod devamı)
+End Sub
+
+' ===== YARDIMCI FONKSİYONLAR =====
+Private Function IDGetir(sayfaAdi As String, deger As String, sutun As Long) As Long
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets(sayfaAdi)
+    
+    Dim i As Long
+    For i = 2 To ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+        If ws.Cells(i, sutun).Value = deger Then
+            IDGetir = ws.Cells(i, 1).Value
+            Exit Function
+        End If
+    Next i
+    
+    IDGetir = 0
+End Function
+
+Private Function SirketIDGetir(ortakID As Long) As Long
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Worksheets("Ortaklar")
+    
+    Dim i As Long
+    For i = 2 To ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+        If ws.Cells(i, 1).Value = ortakID Then
+            SirketIDGetir = ws.Cells(i, 3).Value
+            Exit Function
+        End If
+    Next i
+    
+    SirketIDGetir = 0
+End Function
