@@ -1,0 +1,7 @@
+# Build artifacts
+desktop-app/dist/
+desktop-app/node_modules/
+*.exe
+*.AppImage
+*.snap
+*.dmg

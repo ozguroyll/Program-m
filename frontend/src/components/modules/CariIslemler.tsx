@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
-import { ProfessionalDataTable } from '@/components/ui/professional-data-table';
+import { UltraProfessionalTable } from '@/components/ui/ultra-professional-table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, CreditCard, Banknote, ArrowUpDown, Plus, Save, FileText, DollarSign, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -670,15 +670,15 @@ export function CariIslemler() {
               </div>
             </CardHeader>
             <CardContent>
-              <ProfessionalDataTable
+              <UltraProfessionalTable
                 columns={cariIslemColumns}
                 data={cariIslemler}
                 title="Cari İşlem Listesi"
                 description="Tüm cari işlemlerinizi görüntüleyin ve yönetin"
                 searchKey="cariAdi"
                 searchPlaceholder="Cari adı, belge no veya açıklama ile ara..."
-                enableSelection={true}
-                onExport={(format) => {
+                enableRowSelection={true}
+                onExport={(format: string) => {
                   alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
                 }}
                 onRefresh={() => window.location.reload()}
@@ -714,15 +714,15 @@ export function CariIslemler() {
               </div>
             </CardHeader>
             <CardContent>
-              <ProfessionalDataTable
+              <UltraProfessionalTable
                 columns={cariEkstreColumns}
                 data={cariEkstreler}
                 title="Cari Ekstre Listesi"
                 description="Cari hesap bakiyelerini ve hareketlerini görüntüleyin"
                 searchKey="cariAdi"
                 searchPlaceholder="Cari adı veya kodu ile ara..."
-                enableSelection={true}
-                onExport={(format) => {
+                enableRowSelection={true}
+                onExport={(format: string) => {
                   alert(`${format} formatında dışa aktarma özelliği yakında eklenecek`);
                 }}
                 onRefresh={() => window.location.reload()}

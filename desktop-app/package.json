@@ -1,0 +1,42 @@
+{
+  "name": "stok-muhasebe-sistemi",
+  "version": "1.0.0",
+  "description": "Windows tabanlı yerel veritabanı stok ve muhasebe yönetim sistemi",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "dist": "electron-builder --publish=never"
+  },
+  "keywords": ["stok", "muhasebe", "yönetim", "windows"],
+  "author": "Özgür Yılmaz",
+  "license": "ISC",
+  "build": {
+    "appId": "com.yilmaztransport.stokmuhasebe",
+    "productName": "Stok Muhasebe Sistemi",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "renderer/**/*",
+      "database/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.2.4",
+    "electron-builder": "^26.0.12",
+    "sqlite3": "^5.1.7"
+  }
+}
