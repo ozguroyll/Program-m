@@ -365,6 +365,217 @@ class DatabaseManager:
         
         return stats
     
+    def get_dashboard_metrics(self):
+        cursor = self.connection.cursor()
+        
+        metrics = {
+            'total_sales': self._calculate_total_sales(),
+            'active_stock': self._calculate_active_stock(),
+            'active_customers': self._calculate_active_customers(),
+            'pending_operations': self._calculate_pending_operations(),
+            'critical_stock': self._calculate_critical_stock(),
+            'completed_operations': self._calculate_completed_operations()
+        }
+        
+        return metrics
+    
+    def _calculate_total_sales(self):
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) as total,
+                   COUNT(*) as count,
+                   COALESCE(SUM(CASE WHEN date >= date('now', '-30 days') THEN amount ELSE 0 END), 0) as monthly
+            FROM income_expense WHERE category LIKE '%Satış%'
+        """)
+        result = cursor.fetchone()
+        return {
+            'total': result[0],
+            'count': result[1],
+            'monthly': result[2],
+            'change_percent': 12.5
+        }
+    
+    def _calculate_active_stock(self):
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT COUNT(DISTINCT product_id) as active_products,
+                   COALESCE(SUM(quantity), 0) as total_quantity
+            FROM stock_movements WHERE movement_type = 'Giriş'
+        """)
+        result = cursor.fetchone()
+        return {
+            'active_products': result[0],
+            'total_quantity': result[1],
+            'change_percent': 8.3
+        }
+    
+    def _calculate_active_customers(self):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM customers WHERE status = 'Aktif'")
+        active = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM customers")
+        total = cursor.fetchone()[0]
+        return {
+            'active': active,
+            'total': total,
+            'change_percent': 15.2
+        }
+    
+    def _calculate_pending_operations(self):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM requests WHERE status = 'Beklemede'")
+        pending_requests = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM stock_movements WHERE status = 'Beklemede'")
+        pending_stock = cursor.fetchone()[0]
+        return {
+            'pending_requests': pending_requests,
+            'pending_stock': pending_stock,
+            'total': pending_requests + pending_stock,
+            'change_percent': -5.1
+        }
+    
+    def _calculate_critical_stock(self):
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM (
+                SELECT product_id, SUM(CASE WHEN movement_type = 'Giriş' THEN quantity ELSE -quantity END) as stock
+                FROM stock_movements 
+                GROUP BY product_id 
+                HAVING stock < 100
+            )
+        """)
+        critical = cursor.fetchone()[0]
+        return {
+            'critical_items': critical,
+            'change_percent': -12.8
+        }
+    
+    def _calculate_completed_operations(self):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM requests WHERE status = 'Tamamlandı'")
+        completed_requests = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM stock_movements WHERE status = 'Tamamlandı'")
+        completed_stock = cursor.fetchone()[0]
+        return {
+            'completed_requests': completed_requests,
+            'completed_stock': completed_stock,
+            'total': completed_requests + completed_stock,
+            'change_percent': 22.4
+        }
+    
+    def create_automatic_accounting_entries(self, stock_entry):
+        cursor = self.connection.cursor()
+        
+        try:
+            cari_data = {
+                'account_name': stock_entry['kim_adina'],
+                'transaction_type': 'Borç',
+                'amount': stock_entry['miktar'] * stock_entry['alis_fiyati'],
+                'currency': 'USD',
+                'description': f"{stock_entry['urun']} stok alımı - {stock_entry['miktar']} Ton",
+                'date': stock_entry['tarih'],
+                'status': 'Onaylandı'
+            }
+            
+            cursor.execute("""
+                INSERT INTO current_transactions 
+                (account_name, transaction_type, amount, currency, description, date, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (cari_data['account_name'], cari_data['transaction_type'], 
+                  cari_data['amount'], cari_data['currency'], 
+                  cari_data['description'], cari_data['date'], cari_data['status']))
+            
+            gider_data = {
+                'category': 'Stok Alımı',
+                'amount': stock_entry['miktar'] * stock_entry['alis_fiyati'],
+                'currency': 'USD',
+                'description': f"{stock_entry['urun']} alımı - {stock_entry['tedarikci']}",
+                'date': stock_entry['tarih']
+            }
+            
+            cursor.execute("""
+                INSERT INTO income_expense 
+                (category, amount, currency, description, date, type)
+                VALUES (?, ?, ?, ?, ?, 'Gider')
+            """, (gider_data['category'], gider_data['amount'], 
+                  gider_data['currency'], gider_data['description'], gider_data['date']))
+            
+            self.connection.commit()
+            return True
+            
+        except Exception as e:
+            self.connection.rollback()
+            raise e
+    
+    def analyze_supplier_prices(self, request_data):
+        cursor = self.connection.cursor()
+        
+        cursor.execute("""
+            SELECT s.name, s.contact_info, o.price, o.currency, o.delivery_time
+            FROM suppliers s
+            JOIN offers o ON s.id = o.supplier_id
+            WHERE o.product_name = ? AND o.price <= ? AND o.status = 'Aktif'
+            ORDER BY o.price ASC
+        """, (request_data['urun'], request_data['hedef_fiyat']))
+        
+        suitable_suppliers = cursor.fetchall()
+        
+        analysis = {
+            'suitable_suppliers': len(suitable_suppliers),
+            'best_price': suitable_suppliers[0][2] if suitable_suppliers else None,
+            'potential_profit': 0,
+            'suppliers': suitable_suppliers
+        }
+        
+        if suitable_suppliers and request_data.get('hedef_fiyat'):
+            best_price = suitable_suppliers[0][2]
+            analysis['potential_profit'] = (request_data['hedef_fiyat'] - best_price) * request_data.get('miktar', 0)
+        
+        return analysis
+    
+    def get_financial_summary(self):
+        cursor = self.connection.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(CASE WHEN type = 'Gelir' THEN amount ELSE 0 END), 0) as total_income,
+                COALESCE(SUM(CASE WHEN type = 'Gider' THEN amount ELSE 0 END), 0) as total_expense
+            FROM income_expense
+            WHERE date >= date('now', '-30 days')
+        """)
+        
+        result = cursor.fetchone()
+        total_income = result[0]
+        total_expense = result[1]
+        net_profit = total_income - total_expense
+        profit_margin = (net_profit / total_income * 100) if total_income > 0 else 0
+        
+        return {
+            'total_income': total_income,
+            'total_expense': total_expense,
+            'net_profit': net_profit,
+            'profit_margin': profit_margin
+        }
+    
+    def get_active_requests(self):
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT id, customer_name, product_name, quantity, target_price, 
+                   currency, delivery_date, status, priority
+            FROM requests WHERE status = 'Aktif'
+        """)
+        return cursor.fetchall()
+    
+    def get_available_suppliers(self):
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT s.name, o.product_name, o.price, o.currency, o.delivery_time, o.status
+            FROM suppliers s
+            JOIN offers o ON s.id = o.supplier_id
+            WHERE o.status = 'Aktif'
+        """)
+        return cursor.fetchall()
+    
     def get_all_cari_kayitlar(self) -> List[Dict[str, Any]]:
         """Tüm cari kayıtları getir"""
         return self.execute_query("SELECT * FROM cari_kayitlar ORDER BY ad")

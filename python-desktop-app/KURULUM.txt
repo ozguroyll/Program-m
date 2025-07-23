@@ -1,0 +1,52 @@
+STOK MUHASEBE SİSTEMİ - KURULUM TALİMATLARI
+=============================================
+
+HIZLI KURULUM:
+1. Python 3.8+ yükleyin (python.org)
+2. Komut satırını açın
+3. cd python-desktop-app
+4. pip install -r requirements.txt
+5. python src/main.py
+
+DETAYLI KURULUM:
+
+1. PYTHON KURULUMU:
+   - Windows: python.org adresinden Python 3.10+ indirin
+   - "Add Python to PATH" seçeneğini işaretleyin
+   - Kurulumu tamamlayın
+
+2. PROJE DİZİNİ:
+   - RAR dosyasını çıkarın
+   - python-desktop-app klasörüne gidin
+
+3. BAĞIMLILIKLAR:
+   Komut satırında şu komutları çalıştırın:
+   
+   pip install PyQt6==6.7.0
+   pip install pandas==2.2.2
+   pip install matplotlib==3.8.4
+   pip install openpyxl==3.1.2
+   pip install reportlab==4.2.0
+   pip install xlsxwriter==3.2.0
+   pip install seaborn==0.13.2
+   pip install Pillow==10.3.0
+   pip install python-dateutil==2.9.0
+
+   VEYA:
+   pip install -r requirements.txt
+
+4. ÇALIŞTIRMA:
+   python src/main.py
+
+SORUN GİDERME:
+- PyQt6 hatası: Visual C++ Redistributable yükleyin
+- Encoding hatası: Türkçe karakter desteği için sistem ayarlarını kontrol edin
+- Veritabanı hatası: database klasöründeki dosyaları silin, yeniden oluşturulacak
+
+SİSTEM GEREKSİNİMLERİ:
+- Windows 10/11, macOS 10.14+, Linux
+- Python 3.8+
+- 4 GB RAM (8 GB önerilen)
+- 500 MB disk alanı
+
+DESTEK: ozguro.yl@gmail.com
