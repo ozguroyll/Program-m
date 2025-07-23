@@ -1,0 +1,3 @@
+"""
+Veritabanı modülü
+"""
