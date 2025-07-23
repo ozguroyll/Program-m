@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,44 +8,21 @@ import { UltraProfessionalTable } from '@/components/ui/ultra-professional-table
 import { Package, Truck, Building2, FileText, Plus, TrendingUp, AlertTriangle, CheckCircle, DollarSign } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ColumnDef } from '@tanstack/react-table';
+import { stockService, StokKaydi as ApiStokKaydi, StokCikis as ApiStokCikis, Urun, Tedarikci, Musteri } from '../../services/stockService';
+import { accountingService } from '../../services/accountingService';
 
-interface StokKaydi {
-  id: string;
-  urun: string;
-  miktar: number;
-  birim: string;
-  alisFiyati: number;
-  tedarikci: string;
-  depo: string;
-  kimAdina: string;
-  sirket: string;
-  tarih: string;
-  durum: string;
-}
-
-interface StokCikis {
-  id: string;
-  urun: string;
-  miktar: number;
-  aracPlaka: string;
-  sofor: string;
-  musteri: string;
-  depo: string;
-  romorkTipi: string;
-  tarih: string;
-  durum: string;
-}
-
-interface UrunTanimi {
-  id: string;
-  ad: string;
-  kategori: string;
-  birim: string;
-  aciklama: string;
-}
 
 export function StokYonetimi() {
   const [activeTab, setActiveTab] = useState('stok-listesi');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [stokKayitlari, setStokKayitlari] = useState<ApiStokKaydi[]>([]);
+  const [stokCikislari, setStokCikislari] = useState<ApiStokCikis[]>([]);
+  const [urunler, setUrunler] = useState<Urun[]>([]);
+  const [tedarikciler, setTedarikciler] = useState<Tedarikci[]>([]);
+  const [musteriler, setMusteriler] = useState<Musteri[]>([]);
+  
   const [formData, setFormData] = useState({
     urun: '',
     miktar: '',
@@ -57,38 +34,86 @@ export function StokYonetimi() {
     teslimSekli: ''
   });
 
-  const createAutomaticAccountingEntry = (stokKaydi: StokKaydi) => {
-    const cariIslemData = {
-      id: `CI-${Date.now()}`,
-      cariAdi: stokKaydi.kimAdina,
-      islemTipi: 'Borç',
-      tutar: stokKaydi.miktar * stokKaydi.alisFiyati,
-      doviz: 'USD',
-      aciklama: `${stokKaydi.urun} stok alımı - ${stokKaydi.miktar} ${stokKaydi.birim}`,
-      tarih: new Date().toISOString().split('T')[0],
-      durum: 'Onaylandı'
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [stockEntries, stockExits, products, suppliers, customers] = await Promise.all([
+          stockService.getStockEntries(),
+          stockService.getStockExits(),
+          stockService.getProducts(),
+          stockService.getSuppliers(),
+          stockService.getCustomers()
+        ]);
+        
+        setStokKayitlari(stockEntries);
+        setStokCikislari(stockExits);
+        setUrunler(products);
+        setTedarikciler(suppliers);
+        setMusteriler(customers);
+        setError(null);
+      } catch (err) {
+        setError('Veriler yüklenirken hata oluştu');
+        console.error('Stock data fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const giderKaydiData = {
-      id: `GD-${Date.now()}`,
-      kategori: 'Stok Alımı',
-      tutar: stokKaydi.miktar * stokKaydi.alisFiyati,
-      doviz: 'USD',
-      aciklama: `${stokKaydi.urun} alımı - ${stokKaydi.tedarikci}`,
-      tarih: new Date().toISOString().split('T')[0]
-    };
+    fetchData();
+  }, []);
 
-    console.log('Cari İşlem Data:', cariIslemData);
-    console.log('Gider Kaydı Data:', giderKaydiData);
+  const createAutomaticAccountingEntry = async (stokKaydi: ApiStokKaydi) => {
+    try {
+      const tedarikci = tedarikciler.find(t => t.id === stokKaydi.tedarikci_id);
+      const urun = urunler.find(u => u.id === stokKaydi.urun_id);
+      
+      const cariIslemData = {
+        cari_ad: tedarikci?.ad || 'Bilinmeyen Tedarikçi',
+        cari_tipi: 'Tedarikçi',
+        islem_tipi: 'Borç',
+        tutar: stokKaydi.toplam_fiyat,
+        doviz_tipi: stokKaydi.doviz_tipi || 'TL',
+        kur: 1,
+        referans_no: `STK-${stokKaydi.id}`,
+        stok_referans_id: stokKaydi.id,
+        aciklama: `${urun?.ad || 'Ürün'} stok alımı - ${stokKaydi.miktar} Ton`,
+        tarih: stokKaydi.tarih,
+        odeme_vadesi: stokKaydi.odeme_vadesi
+      };
 
-    toast({
-      title: "Muhasebe Entegrasyonu",
-      description: `Cari işlem ve gider kaydı otomatik oluşturuldu`,
-    });
+      const giderKaydiData = {
+        kategori: 'Stok Alımı',
+        alt_kategori: 'Ürün Alımı',
+        tutar: stokKaydi.toplam_fiyat,
+        doviz_tipi: stokKaydi.doviz_tipi || 'TL',
+        kur: 1,
+        referans_no: `STK-${stokKaydi.id}`,
+        aciklama: `${urun?.ad || 'Ürün'} alımı - ${tedarikci?.ad || 'Tedarikçi'}`,
+        tarih: stokKaydi.tarih
+      };
+
+      await Promise.all([
+        accountingService.createCurrentAccountEntry(cariIslemData),
+        accountingService.createExpenseRecord(giderKaydiData)
+      ]);
+
+      toast({
+        title: "Muhasebe Entegrasyonu",
+        description: `Cari işlem ve gider kaydı otomatik oluşturuldu`,
+      });
+    } catch (error) {
+      console.error('Accounting entry error:', error);
+      toast({
+        title: "Muhasebe Hatası",
+        description: "Otomatik muhasebe kayıtları oluşturulamadı",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleStokGirisi = () => {
-    if (!formData.urun || !formData.miktar || !formData.alisFiyati || !formData.tedarikci || !formData.kimAdina || !formData.sirket) {
+  const handleStokGirisi = async () => {
+    if (!formData.urun || !formData.miktar || !formData.alisFiyati || !formData.tedarikci) {
       toast({
         title: "Hata",
         description: "Lütfen zorunlu alanları doldurun",
@@ -97,170 +122,148 @@ export function StokYonetimi() {
       return;
     }
 
-    const yeniStokKaydi: StokKaydi = {
-      id: `STK-${Date.now()}`,
-      urun: formData.urun,
-      miktar: parseFloat(formData.miktar),
-      birim: 'Ton',
-      alisFiyati: parseFloat(formData.alisFiyati),
-      tedarikci: formData.tedarikci,
-      depo: formData.depo || 'Belirlenmedi',
-      kimAdina: formData.kimAdina,
-      sirket: formData.sirket,
-      tarih: new Date().toISOString().split('T')[0],
-      durum: 'Onaylandı'
-    };
+    try {
+      const selectedUrun = urunler.find(u => u.ad === formData.urun);
+      const selectedTedarikci = tedarikciler.find(t => t.ad === formData.tedarikci);
+      
+      if (!selectedUrun || !selectedTedarikci) {
+        toast({
+          title: "Hata",
+          description: "Seçilen ürün veya tedarikçi bulunamadı",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    createAutomaticAccountingEntry(yeniStokKaydi);
+      const miktar = parseFloat(formData.miktar);
+      const birimFiyat = parseFloat(formData.alisFiyati);
+      const toplamFiyat = miktar * birimFiyat;
 
-    toast({
-      title: "Başarılı",
-      description: "Stok girişi kaydedildi ve otomatik muhasebe kayıtları oluşturuldu",
-    });
+      const yeniStokKaydi = {
+        urun_id: selectedUrun.id,
+        tedarikci_id: selectedTedarikci.id,
+        miktar,
+        birim_fiyat: birimFiyat,
+        toplam_fiyat: toplamFiyat,
+        doviz_tipi: 'TL',
+        lokasyon: formData.depo || 'ZAD 1',
+        tarih: new Date().toISOString().split('T')[0],
+        aciklama: `${formData.sirket} için ${selectedUrun.ad} alımı`
+      };
 
-    setFormData({
-      urun: '',
-      miktar: '',
-      alisFiyati: '',
-      tedarikci: '',
-      depo: '',
-      kimAdina: '',
-      sirket: '',
-      teslimSekli: ''
-    });
+      const createdStokKaydi = await stockService.createStockEntry(yeniStokKaydi);
+      
+      setStokKayitlari(prev => [...prev, createdStokKaydi]);
+      
+      await createAutomaticAccountingEntry(createdStokKaydi);
+
+      toast({
+        title: "Başarılı",
+        description: "Stok girişi kaydedildi ve otomatik muhasebe kayıtları oluşturuldu",
+      });
+
+      setFormData({
+        urun: '',
+        miktar: '',
+        alisFiyati: '',
+        tedarikci: '',
+        depo: '',
+        kimAdina: '',
+        sirket: '',
+        teslimSekli: ''
+      });
+    } catch (error) {
+      console.error('Stock entry error:', error);
+      toast({
+        title: "Hata",
+        description: "Stok girişi kaydedilemedi",
+        variant: "destructive",
+      });
+    }
   };
 
-  const stokKayitlari: StokKaydi[] = [
-    {
-      id: "STK-001",
-      urun: "Mısır",
-      miktar: 5000,
-      birim: "Ton",
-      alisFiyati: 280,
-      tedarikci: "ABC Tarım",
-      depo: "Dönmezoğlu Antrepo",
-      kimAdina: "Şerzat",
-      sirket: "Zad Agro",
-      tarih: "2024-01-15",
-      durum: "Onaylandı"
-    },
-    {
-      id: "STK-002",
-      urun: "Buğday",
-      miktar: 3200,
-      birim: "Ton",
-      alisFiyati: 320,
-      tedarikci: "XYZ Gıda",
-      depo: "Mersin Antrepo",
-      kimAdina: "Amanj",
-      sirket: "Global Agro",
-      tarih: "2024-01-16",
-      durum: "Beklemede"
-    },
-    {
-      id: "STK-003",
-      urun: "Soya Yağı",
-      miktar: 800,
-      birim: "Ton",
-      alisFiyati: 1200,
-      tedarikci: "Dönmezoğlu Antrepo",
-      depo: "İskenderun Limanı",
-      kimAdina: "Şerzat",
-      sirket: "Zad Agro",
-      tarih: "2024-01-17",
-      durum: "Teslim Alındı"
-    }
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  const stokCikislari: StokCikis[] = [
-    {
-      id: "CKS-001",
-      urun: "Mısır",
-      miktar: 25,
-      aracPlaka: "34 ABC 123",
-      sofor: "Mehmet Yılmaz",
-      musteri: "Khoshnaw",
-      depo: "Dönmezoğlu Antrepo",
-      romorkTipi: "Damperli",
-      tarih: "2024-01-18",
-      durum: "Yükleniyor"
-    },
-    {
-      id: "CKS-002",
-      urun: "Buğday",
-      miktar: 30,
-      aracPlaka: "06 XYZ 456",
-      sofor: "Ali Demir",
-      musteri: "Kaiwan",
-      depo: "Mersin Antrepo",
-      romorkTipi: "Sal Kasa",
-      tarih: "2024-01-19",
-      durum: "Yolda"
-    }
-  ];
-
-  const urunTanimlari: UrunTanimi[] = [
-    { id: "URN-001", ad: "Mısır", kategori: "Hububat", birim: "Ton", aciklama: "Sarı mısır, %14 nem" },
-    { id: "URN-002", ad: "Buğday", kategori: "Hububat", birim: "Ton", aciklama: "Ekmeklik buğday, protein %12" },
-    { id: "URN-003", ad: "Soya Yağı", kategori: "Yağ", birim: "Ton", aciklama: "Ham soya yağı" },
-    { id: "URN-004", ad: "Ayçiçreği Yağı", kategori: "Yağ", birim: "Ton", aciklama: "Ham ayçiçreği yağı" },
-    { id: "URN-005", ad: "Arpa", kategori: "Hububat", birim: "Ton", aciklama: "Yem arpası" }
-  ];
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="text-red-800">{error}</div>
+      </div>
+    );
+  }
 
 
 
-  const stokGirisColumns: ColumnDef<StokKaydi>[] = [
+  const stokGirisColumns: ColumnDef<ApiStokKaydi>[] = [
     {
       accessorKey: "id",
       header: "Stok Kodu",
       cell: ({ row }) => (
-        <div className="font-mono text-sm font-medium text-blue-600">{row.getValue('id')}</div>
+        <div className="font-mono text-sm font-medium text-blue-600">STK-{row.getValue('id')}</div>
       ),
     },
     {
       accessorKey: "urun",
       header: "Ürün Adı",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.getValue('urun')}</div>
-          <div className="text-sm text-gray-500">Kategori: Hububat</div>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const urun = urunler.find(u => u.id === row.original.urun_id);
+        return (
+          <div>
+            <div className="font-medium">{urun?.ad || 'Bilinmeyen Ürün'}</div>
+            <div className="text-sm text-gray-500">Kategori: {urun?.kategori || 'Hububat'}</div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "miktar",
       header: "Miktar",
-      cell: ({ row }) => (
-        <div className="text-right">
-          <div className="font-semibold">
-            {parseFloat(row.getValue('miktar')).toLocaleString('tr-TR')} {row.original.birim}
+      cell: ({ row }) => {
+        const urun = urunler.find(u => u.id === row.original.urun_id);
+        return (
+          <div className="text-right">
+            <div className="font-semibold">
+              {parseFloat(row.getValue('miktar')).toLocaleString('tr-TR')} {urun?.birim || 'Ton'}
+            </div>
+            <div className="text-xs text-gray-500">Min: 500 {urun?.birim || 'Ton'}</div>
           </div>
-          <div className="text-xs text-gray-500">Min: 500 {row.original.birim}</div>
-        </div>
-      ),
+        );
+      },
     },
     {
-      accessorKey: "alisFiyati",
+      accessorKey: "birim_fiyat",
       header: "Alış Fiyatı",
-      cell: ({ row }) => (
-        <div className="text-right font-semibold text-green-600">
-          ${Number(row.getValue('alisFiyati')).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const currency = row.original.doviz_tipi === 'USD' ? '$' : '₺';
+        return (
+          <div className="text-right font-semibold text-green-600">
+            {currency}{Number(row.getValue('birim_fiyat')).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+          </div>
+        );
+      },
     },
     {
-      accessorKey: "toplam",
+      accessorKey: "toplam_fiyat",
       header: "Toplam Değer",
       cell: ({ row }) => {
-        const toplam = parseFloat(String(row.original.miktar)) * parseFloat(String(row.original.alisFiyati));
+        const currency = row.original.doviz_tipi === 'USD' ? '$' : '₺';
+        const toplam = row.original.toplam_fiyat;
         return (
           <div className="text-right">
             <div className="font-bold text-blue-600">
-              ${toplam.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              {currency}{toplam.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-gray-500">
-              ₺{(toplam * 32.5).toLocaleString('tr-TR')}
-            </div>
+            {row.original.doviz_tipi === 'USD' && (
+              <div className="text-xs text-gray-500">
+                ₺{(toplam * 32.5).toLocaleString('tr-TR')}
+              </div>
+            )}
           </div>
         );
       },
@@ -268,12 +271,15 @@ export function StokYonetimi() {
     {
       accessorKey: "tedarikci",
       header: "Tedarikçi",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.getValue('tedarikci')}</div>
-          <div className="text-xs text-gray-500">SUP-001</div>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const tedarikci = tedarikciler.find(t => t.id === row.original.tedarikci_id);
+        return (
+          <div>
+            <div className="font-medium">{tedarikci?.ad || 'Bilinmeyen Tedarikçi'}</div>
+            <div className="text-xs text-gray-500">SUP-{tedarikci?.id || '000'}</div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "depo",
@@ -323,7 +329,7 @@ export function StokYonetimi() {
     },
   ];
 
-  const stokCikisColumns: ColumnDef<StokCikis>[] = [
+  const stokCikisColumns: ColumnDef<ApiStokCikis>[] = [
     {
       accessorKey: "id",
       header: "Çıkış Kodu",
@@ -334,12 +340,16 @@ export function StokYonetimi() {
     {
       accessorKey: "urun",
       header: "Ürün Adı",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.getValue('urun')}</div>
-          <div className="text-sm text-gray-500">Kategori: Hububat</div>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const stokKaydi = stokKayitlari.find(s => s.id === row.original.stok_kaydi_id);
+        const urun = stokKaydi ? urunler.find(u => u.id === stokKaydi.urun_id) : null;
+        return (
+          <div>
+            <div className="font-medium">{urun?.ad || 'Bilinmeyen Ürün'}</div>
+            <div className="text-sm text-gray-500">Kategori: {urun?.kategori || 'Hububat'}</div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "miktar",
@@ -354,47 +364,50 @@ export function StokYonetimi() {
       ),
     },
     {
-      accessorKey: "aracPlaka",
+      accessorKey: "plaka",
       header: "Araç Plaka",
       cell: ({ row }) => (
         <div>
-          <div className="font-mono text-sm font-medium">{row.getValue('aracPlaka')}</div>
-          <div className="text-xs text-gray-500">{row.original.romorkTipi}</div>
+          <div className="font-mono text-sm font-medium">{row.getValue('plaka') || 'Belirtilmemiş'}</div>
+          <div className="text-xs text-gray-500">Araç Bilgisi</div>
         </div>
       ),
     },
     {
-      accessorKey: "sofor",
+      accessorKey: "sofor_ad",
       header: "Şoför",
       cell: ({ row }) => (
-        <div className="font-medium">{row.getValue('sofor')}</div>
+        <div className="font-medium">{row.getValue('sofor_ad') || 'Belirtilmemiş'}</div>
       ),
     },
     {
       accessorKey: "musteri",
       header: "Müşteri",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.getValue('musteri')}</div>
-          <div className="text-xs text-gray-500">MUS-001</div>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const musteri = musteriler.find(m => m.id === row.original.musteri_id);
+        return (
+          <div>
+            <div className="font-medium">{musteri?.ad || 'Bilinmeyen Müşteri'}</div>
+            <div className="text-xs text-gray-500">MUS-{musteri?.id || '000'}</div>
+          </div>
+        );
+      },
     },
     {
-      accessorKey: "depo",
+      accessorKey: "lokasyon",
       header: "Çıkış Deposu",
       cell: ({ row }) => (
         <Badge variant="outline" className="font-medium">
-          {row.getValue('depo')}
+          {row.getValue('lokasyon') || 'Belirtilmemiş'}
         </Badge>
       ),
     },
     {
-      accessorKey: "romorkTipi",
-      header: "Römork Tipi",
+      accessorKey: "cikis_tipi",
+      header: "Çıkış Tipi",
       cell: ({ row }) => (
         <Badge variant="secondary">
-          {row.getValue('romorkTipi')}
+          {row.getValue('cikis_tipi') || 'Devir'}
         </Badge>
       ),
     },
@@ -418,7 +431,7 @@ export function StokYonetimi() {
     },
   ];
 
-  const urunTanimlariColumns: ColumnDef<UrunTanimi>[] = [
+  const urunTanimlariColumns: ColumnDef<Urun>[] = [
     {
       accessorKey: "id",
       header: "Ürün Kodu",
@@ -493,7 +506,7 @@ export function StokYonetimi() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stokCikislari.filter(s => s.durum !== 'Teslim Edildi').length}</div>
+            <div className="text-2xl font-bold">{stokCikislari.length}</div>
             <p className="text-xs text-muted-foreground">Yolda ve yükleniyor</p>
             <div className="flex items-center text-xs text-red-600 mt-1">
               <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
@@ -588,9 +601,9 @@ export function StokYonetimi() {
                 showMetrics
                 metrics={{
                   total: stokKayitlari.length,
-                  active: stokKayitlari.filter(s => s.durum === 'Onaylandı').length,
-                  pending: stokKayitlari.filter(s => s.durum === 'Beklemede').length,
-                  completed: stokKayitlari.filter(s => s.durum === 'Tamamlandı').length
+                  active: stokKayitlari.length,
+                  pending: 0,
+                  completed: stokKayitlari.length
                 }}
               />
             </CardContent>
@@ -823,9 +836,9 @@ export function StokYonetimi() {
                 showMetrics
                 metrics={{
                   total: stokCikislari.length,
-                  active: stokCikislari.filter(s => s.durum === 'Yolda').length,
-                  pending: stokCikislari.filter(s => s.durum === 'Yükleniyor').length,
-                  completed: stokCikislari.filter(s => s.durum === 'Teslim Edildi').length
+                  active: stokCikislari.length,
+                  pending: 0,
+                  completed: stokCikislari.length
                 }}
               />
             </CardContent>
@@ -845,7 +858,7 @@ export function StokYonetimi() {
             </CardHeader>
             <CardContent className="h-full">
               <UltraProfessionalTable
-                data={urunTanimlari}
+                data={urunler}
                 columns={urunTanimlariColumns}
                 title="Ürün Kataloğu"
                 description="Tüm ürün tanımları ve kategorileri"
@@ -861,10 +874,10 @@ export function StokYonetimi() {
                 onRefresh={() => window.location.reload()}
                 showMetrics
                 metrics={{
-                  total: urunTanimlari.length,
-                  active: urunTanimlari.length,
+                  total: urunler.length,
+                  active: urunler.length,
                   pending: 0,
-                  completed: urunTanimlari.length
+                  completed: urunler.length
                 }}
               />
             </CardContent>
@@ -916,7 +929,7 @@ export function StokYonetimi() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Toplam Ürün Çeşidi</span>
-                    <span className="font-semibold">{urunTanimlari.length}</span>
+                    <span className="font-semibold">{urunler.length}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Aktif Stok Kayıtları</span>
@@ -924,7 +937,7 @@ export function StokYonetimi() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Bekleyen Sevkiyatlar</span>
-                    <span className="font-semibold">{stokCikislari.filter(s => s.durum !== 'Teslim Edildi').length}</span>
+                    <span className="font-semibold">{stokCikislari.length}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Toplam Stok Değeri</span>

@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   TrendingUp, 
   DollarSign,
   Package, 
-  Users, 
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -13,6 +12,8 @@ import {
   BarChart3,
   Activity
 } from 'lucide-react';
+import { dashboardService, DashboardStats } from '../../services/dashboardService';
+import { stockService, StokDurumu } from '../../services/stockService';
 
 interface MetricCardProps {
   title: string;
@@ -96,20 +97,74 @@ interface DashboardMetricsProps {
 }
 
 export function EnhancedDashboardMetrics({ className }: DashboardMetricsProps) {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stockStatus, setStockStatus] = useState<StokDurumu[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [dashboardStats, stockData] = await Promise.all([
+          dashboardService.getStats(),
+          stockService.getStockStatus()
+        ]);
+        
+        setStats(dashboardStats);
+        setStockStatus(stockData);
+        setError(null);
+      } catch (err) {
+        setError('Dashboard verileri yüklenirken hata oluştu');
+        console.error('Dashboard error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const formatCurrency = (amount: number, currency: string = 'TL') => {
+    if (currency === 'USD') {
+      return `$${amount.toLocaleString()}`;
+    }
+    return `₺${amount.toLocaleString()}`;
+  };
+
+  if (loading) {
+    return (
+      <div className={`flex items-center justify-center h-32 ${className}`}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`bg-red-50 border border-red-200 rounded-md p-4 ${className}`}>
+        <div className="text-red-800">{error}</div>
+      </div>
+    );
+  }
+
+  const totalStock = stockStatus.reduce((sum, item) => sum + item.toplam_miktar, 0);
+  const criticalStocks = stockStatus.filter(item => item.durum === 'Kritik').length;
+
   const metrics = [
     {
-      title: "Toplam Satış",
-      value: "$2,847,500",
+      title: "Toplam Stok Değeri",
+      value: formatCurrency(stats?.toplam_stok_degeri || 0),
       change: 12.5,
       changeType: 'increase' as const,
       icon: <DollarSign className="h-4 w-4" />,
-      description: "Bu ay",
+      description: "TL bazında",
       trend: 'up' as const,
       color: 'green' as const
     },
     {
       title: "Aktif Stok",
-      value: "15,847",
+      value: totalStock.toLocaleString(),
       change: -2.3,
       changeType: 'decrease' as const,
       icon: <Package className="h-4 w-4" />,
@@ -118,28 +173,28 @@ export function EnhancedDashboardMetrics({ className }: DashboardMetricsProps) {
       color: 'blue' as const
     },
     {
-      title: "Aktif Cariler",
-      value: "1,247",
+      title: "Aylık Satış",
+      value: formatCurrency(stats?.aylik_satis || 0, 'USD'),
       change: 8.1,
       changeType: 'increase' as const,
-      icon: <Users className="h-4 w-4" />,
-      description: "Müşteri/Tedarikçi",
+      icon: <TrendingUp className="h-4 w-4" />,
+      description: "Bu ay",
       trend: 'up' as const,
       color: 'purple' as const
     },
     {
-      title: "Bekleyen İşlemler",
-      value: "23",
+      title: "Bekleyen Ödemeler",
+      value: formatCurrency(stats?.bekleyen_odemeler || 0),
       change: 0,
       changeType: 'neutral' as const,
       icon: <Clock className="h-4 w-4" />,
-      description: "Onay bekliyor",
+      description: "Tahsil edilecek",
       trend: 'stable' as const,
       color: 'yellow' as const
     },
     {
       title: "Kritik Stok",
-      value: "8",
+      value: (stats?.kritik_stoklar || criticalStocks).toString(),
       change: -15.2,
       changeType: 'decrease' as const,
       icon: <AlertTriangle className="h-4 w-4" />,
@@ -148,12 +203,12 @@ export function EnhancedDashboardMetrics({ className }: DashboardMetricsProps) {
       color: 'red' as const
     },
     {
-      title: "Tamamlanan İşlemler",
-      value: "1,847",
+      title: "Kar Oranı",
+      value: `%${stats?.kar_orani || 0}`,
       change: 18.7,
       changeType: 'increase' as const,
       icon: <CheckCircle className="h-4 w-4" />,
-      description: "Bu ay",
+      description: "Ortalama",
       trend: 'up' as const,
       color: 'green' as const
     }
