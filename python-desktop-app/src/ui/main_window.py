@@ -21,6 +21,7 @@ from ui.modules.gelir_gider_yonetimi import GelirGiderYonetimiModule
 from ui.modules.cari_tanimlama import CariTanimlamaModule
 from ui.modules.cari_islemler import CariIslemlerModule
 from ui.modules.banka_yonetimi import BankaYonetimiModule
+from ui.modules.doviz_yonetimi import DovizYonetimiModule
 
 class MainWindow(QMainWindow):
     """Ana uygulama penceresi"""
@@ -109,6 +110,9 @@ class MainWindow(QMainWindow):
         
         self.modules['banka'] = BankaYonetimiModule(self.db_manager)
         self.tab_widget.addTab(self.modules['banka'], "🏦 Banka Yönetimi")
+        
+        self.modules['doviz'] = DovizYonetimiModule(self.db_manager)
+        self.tab_widget.addTab(self.modules['doviz'], "💱 Döviz & Kar/Zarar")
     
     def setup_menu(self):
         """Menü çubuğunu oluştur"""

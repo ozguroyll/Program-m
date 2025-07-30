@@ -118,9 +118,29 @@ class DatabaseManager:
                     alis_fiyati REAL,
                     tedarikci_id INTEGER,
                     depo TEXT,
+                    lokasyon_tipi TEXT DEFAULT 'Depo',
+                    adres_ismi TEXT,
                     kim_adina TEXT,
                     sirket TEXT,
                     tarih DATE,
+                    odeme_vadesi DATE,
+                    protein REAL,
+                    hektolitre REAL,
+                    rutubet REAL,
+                    hasere TEXT,
+                    embriyo REAL,
+                    donme REAL,
+                    yabanci_madde REAL,
+                    plaka TEXT,
+                    sofor_adi TEXT,
+                    sofor_telefon TEXT,
+                    hamal_ucreti REAL DEFAULT 0,
+                    kepce_ucreti REAL DEFAULT 0,
+                    nakliye_ucreti REAL DEFAULT 0,
+                    fatura_ucreti REAL DEFAULT 0,
+                    fatura_kim_odedi TEXT DEFAULT 'Alıcı',
+                    yukleme_tipi TEXT DEFAULT 'Hamal',
+                    doviz_kuru REAL DEFAULT 1,
                     durum TEXT DEFAULT 'Onaylandı',
                     olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (urun_id) REFERENCES urunler (id),
@@ -132,14 +152,30 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS stok_cikislari (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     cikis_no TEXT UNIQUE NOT NULL,
+                    cikis_tipi TEXT DEFAULT 'Devir',
                     urun_id INTEGER,
                     miktar REAL NOT NULL,
                     birim TEXT,
+                    satis_fiyati REAL,
                     musteri_id INTEGER,
+                    lokasyon TEXT,
+                    lokasyon_tipi TEXT DEFAULT 'Depo',
+                    adres_ismi TEXT,
                     plaka TEXT,
-                    sofor TEXT,
+                    sofor_adi TEXT,
+                    sofor_telefon TEXT,
                     tonaj REAL,
                     tarih DATE,
+                    odeme_vadesi DATE,
+                    hamal_ucreti REAL DEFAULT 0,
+                    kepce_ucreti REAL DEFAULT 0,
+                    nakliye_ucreti REAL DEFAULT 0,
+                    fatura_ucreti REAL DEFAULT 0,
+                    gumruk_ucreti REAL DEFAULT 0,
+                    fatura_kim_odedi TEXT DEFAULT 'Satıcı',
+                    yukleme_tipi TEXT DEFAULT 'Hamal',
+                    doviz_kuru REAL DEFAULT 1,
+                    dap_geliri REAL DEFAULT 0,
                     durum TEXT DEFAULT 'Hazırlanıyor',
                     olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (urun_id) REFERENCES urunler (id),
@@ -157,6 +193,10 @@ class DatabaseManager:
                     alt_kategori TEXT,
                     tutar REAL NOT NULL,
                     doviz TEXT DEFAULT 'TRY',
+                    doviz_kuru REAL DEFAULT 1,
+                    tl_karsiligi REAL,
+                    dap_geliri REAL DEFAULT 0,
+                    referans_no TEXT,
                     aciklama TEXT,
                     durum TEXT DEFAULT 'Onaylandı',
                     olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -173,7 +213,10 @@ class DatabaseManager:
                     alt_kategori TEXT,
                     tutar REAL NOT NULL,
                     doviz TEXT DEFAULT 'TRY',
+                    doviz_kuru REAL DEFAULT 1,
+                    tl_karsiligi REAL,
                     gider_tipi TEXT,
+                    referans_no TEXT,
                     aciklama TEXT,
                     durum TEXT DEFAULT 'Onaylandı',
                     olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -191,6 +234,9 @@ class DatabaseManager:
                     odeme_tipi TEXT,
                     tutar REAL NOT NULL,
                     doviz_tipi TEXT DEFAULT 'TRY',
+                    doviz_kuru REAL DEFAULT 1,
+                    tl_karsiligi REAL,
+                    vade_tarihi DATE,
                     aciklama TEXT,
                     belge_no TEXT,
                     durum TEXT DEFAULT 'Beklemede',
@@ -226,6 +272,37 @@ class DatabaseManager:
                     durum TEXT DEFAULT 'Onaylandı',
                     olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (hesap_id) REFERENCES banka_hesaplari (id)
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS doviz_kurlari (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tarih DATE NOT NULL,
+                    doviz_tipi TEXT NOT NULL,
+                    alis_kuru REAL NOT NULL,
+                    satis_kuru REAL NOT NULL,
+                    merkez_kuru REAL NOT NULL,
+                    kaynak TEXT DEFAULT 'Manuel',
+                    olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS kar_zarar_analizi (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tarih DATE NOT NULL,
+                    donem TEXT NOT NULL,
+                    toplam_alis REAL DEFAULT 0,
+                    toplam_alis_masraf REAL DEFAULT 0,
+                    toplam_satis REAL DEFAULT 0,
+                    toplam_satis_masraf REAL DEFAULT 0,
+                    dap_geliri REAL DEFAULT 0,
+                    net_kar REAL DEFAULT 0,
+                    kar_marji REAL DEFAULT 0,
+                    doviz_kuru_etkisi REAL DEFAULT 0,
+                    aciklama TEXT,
+                    olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
@@ -280,6 +357,19 @@ class DatabaseManager:
                 (banka_adi, hesap_adi, hesap_no, iban, bakiye, doviz) 
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', sample_banka)
+            
+            sample_kurlar = [
+                ('2025-07-30', 'USD', 34.2500, 34.3500, 34.3000),
+                ('2025-07-30', 'EUR', 37.1500, 37.2500, 37.2000),
+                ('2025-07-29', 'USD', 34.1800, 34.2800, 34.2300),
+                ('2025-07-29', 'EUR', 37.0800, 37.1800, 37.1300)
+            ]
+            
+            cursor.executemany('''
+                INSERT OR IGNORE INTO doviz_kurlari 
+                (tarih, doviz_tipi, alis_kuru, satis_kuru, merkez_kuru) 
+                VALUES (?, ?, ?, ?, ?)
+            ''', sample_kurlar)
             
             self.connection.commit()
             
@@ -648,13 +738,24 @@ class DatabaseManager:
         """Yeni stok kaydı ekle"""
         query = """
             INSERT INTO stok_kayitlari 
-            (stok_no, urun_id, miktar, birim, alis_fiyati, tedarikci_id, depo, kim_adina, sirket, tarih, durum)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (stok_no, urun_id, miktar, birim, alis_fiyati, tedarikci_id, depo, lokasyon_tipi, adres_ismi,
+             kim_adina, sirket, tarih, odeme_vadesi, protein, hektolitre, rutubet, hasere, embriyo, donme, 
+             yabanci_madde, plaka, sofor_adi, sofor_telefon, hamal_ucreti, kepce_ucreti, nakliye_ucreti, 
+             fatura_ucreti, fatura_kim_odedi, yukleme_tipi, doviz_kuru, durum)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         return self.execute_insert(query, (
             data['stok_no'], data['urun_id'], data['miktar'], data['birim'],
             data['alis_fiyati'], data['tedarikci_id'], data.get('depo', ''),
-            data.get('kim_adina', ''), data.get('sirket', ''), data['tarih'], data['durum']
+            data.get('lokasyon_tipi', 'Depo'), data.get('adres_ismi', ''),
+            data.get('kim_adina', ''), data.get('sirket', ''), data['tarih'], 
+            data.get('odeme_vadesi', ''), data.get('protein', 0), data.get('hektolitre', 0),
+            data.get('rutubet', 0), data.get('hasere', ''), data.get('embriyo', 0),
+            data.get('donme', 0), data.get('yabanci_madde', 0), data.get('plaka', ''),
+            data.get('sofor_adi', ''), data.get('sofor_telefon', ''), data.get('hamal_ucreti', 0),
+            data.get('kepce_ucreti', 0), data.get('nakliye_ucreti', 0), data.get('fatura_ucreti', 0),
+            data.get('fatura_kim_odedi', 'Alıcı'), data.get('yukleme_tipi', 'Hamal'),
+            data.get('doviz_kuru', 1), data['durum']
         ))
     
     def get_all_gelir_kayitlari(self) -> List[Dict[str, Any]]:
@@ -740,3 +841,100 @@ class DatabaseManager:
             data.get('iban', ''), data.get('bakiye', 0), data.get('doviz', 'TRY'),
             data.get('durum', 'Aktif')
         ))
+    
+    def insert_doviz_kuru(self, data: Dict[str, Any]) -> int:
+        """Yeni döviz kuru ekle"""
+        query = """
+            INSERT INTO doviz_kurlari 
+            (tarih, doviz_tipi, alis_kuru, satis_kuru, merkez_kuru, kaynak)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        return self.execute_insert(query, (
+            data['tarih'], data['doviz_tipi'], data['alis_kuru'],
+            data['satis_kuru'], data['merkez_kuru'], data.get('kaynak', 'Manuel')
+        ))
+    
+    def get_guncel_doviz_kuru(self, doviz_tipi: str, tarih: str = None) -> float:
+        """Güncel döviz kurunu getir"""
+        if tarih is None:
+            from datetime import datetime
+            tarih = datetime.now().strftime('%Y-%m-%d')
+        
+        query = """
+            SELECT satis_kuru FROM doviz_kurlari 
+            WHERE doviz_tipi = ? AND tarih <= ? 
+            ORDER BY tarih DESC LIMIT 1
+        """
+        result = self.execute_query(query, (doviz_tipi, tarih))
+        return result[0]['satis_kuru'] if result else 1.0
+    
+    def calculate_dap_income(self, miktar: float, doviz_kuru: float = None) -> float:
+        """DAP gelirini hesapla (%3)"""
+        if doviz_kuru is None:
+            doviz_kuru = self.get_guncel_doviz_kuru('USD')
+        
+        dap_usd = 327 * miktar / 1000  # 1000 ton için 327 USD
+        dap_geliri = dap_usd * 0.03  # %3 kar
+        return dap_geliri
+    
+    def insert_kar_zarar_analizi(self, data: Dict[str, Any]) -> int:
+        """Kar zarar analizi kaydet"""
+        query = """
+            INSERT INTO kar_zarar_analizi 
+            (tarih, donem, toplam_alis, toplam_alis_masraf, toplam_satis, toplam_satis_masraf,
+             dap_geliri, net_kar, kar_marji, doviz_kuru_etkisi, aciklama)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        return self.execute_insert(query, (
+            data['tarih'], data['donem'], data.get('toplam_alis', 0),
+            data.get('toplam_alis_masraf', 0), data.get('toplam_satis', 0),
+            data.get('toplam_satis_masraf', 0), data.get('dap_geliri', 0),
+            data.get('net_kar', 0), data.get('kar_marji', 0),
+            data.get('doviz_kuru_etkisi', 0), data.get('aciklama', '')
+        ))
+    
+    def get_kar_zarar_raporu(self, baslangic_tarih: str, bitis_tarih: str) -> Dict[str, Any]:
+        """Kar zarar raporu oluştur"""
+        alis_query = """
+            SELECT COALESCE(SUM(miktar * alis_fiyati), 0) as toplam_alis,
+                   COALESCE(SUM(hamal_ucreti + kepce_ucreti + nakliye_ucreti + fatura_ucreti), 0) as toplam_alis_masraf
+            FROM stok_kayitlari 
+            WHERE tarih BETWEEN ? AND ? AND durum = 'Onaylandı'
+        """
+        alis_result = self.execute_query(alis_query, (baslangic_tarih, bitis_tarih))
+        
+        satis_query = """
+            SELECT COALESCE(SUM(miktar * satis_fiyati), 0) as toplam_satis,
+                   COALESCE(SUM(hamal_ucreti + kepce_ucreti + nakliye_ucreti + fatura_ucreti + gumruk_ucreti), 0) as toplam_satis_masraf,
+                   COALESCE(SUM(dap_geliri), 0) as toplam_dap
+            FROM stok_cikislari 
+            WHERE tarih BETWEEN ? AND ? AND durum = 'Tamamlandı'
+        """
+        satis_result = self.execute_query(satis_query, (baslangic_tarih, bitis_tarih))
+        
+        if alis_result and satis_result:
+            toplam_alis = alis_result[0]['toplam_alis'] + alis_result[0]['toplam_alis_masraf']
+            toplam_satis_usd = satis_result[0]['toplam_satis'] - satis_result[0]['toplam_satis_masraf']
+            dap_geliri = satis_result[0]['toplam_dap']
+            
+            ortalama_kur = self.get_guncel_doviz_kuru('USD', bitis_tarih)
+            toplam_satis_tl = (toplam_satis_usd + dap_geliri) * ortalama_kur
+            
+            net_kar = toplam_satis_tl - toplam_alis
+            kar_marji = (net_kar / toplam_satis_tl * 100) if toplam_satis_tl > 0 else 0
+            
+            return {
+                'toplam_alis_tl': toplam_alis,
+                'toplam_satis_usd': toplam_satis_usd,
+                'toplam_satis_tl': toplam_satis_tl,
+                'dap_geliri_usd': dap_geliri,
+                'dap_geliri_tl': dap_geliri * ortalama_kur,
+                'net_kar': net_kar,
+                'kar_marji': kar_marji,
+                'ortalama_kur': ortalama_kur
+            }
+        
+        return {
+            'toplam_alis_tl': 0, 'toplam_satis_usd': 0, 'toplam_satis_tl': 0,
+            'dap_geliri_usd': 0, 'dap_geliri_tl': 0, 'net_kar': 0, 'kar_marji': 0, 'ortalama_kur': 1
+        }
